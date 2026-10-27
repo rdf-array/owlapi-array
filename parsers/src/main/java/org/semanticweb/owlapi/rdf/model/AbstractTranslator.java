@@ -80,10 +80,7 @@ import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDFS_DOMAIN;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDFS_RANGE;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDFS_SUBCLASS_OF;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDFS_SUB_PROPERTY_OF;
-import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_FIRST;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_LIST;
-import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_NIL;
-import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_REST;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_TYPE;
 import static org.semanticweb.owlapi.vocab.SWRLVocabulary.ARGUMENTS;
 import static org.semanticweb.owlapi.vocab.SWRLVocabulary.ARGUMENT_1;
@@ -133,6 +130,7 @@ import org.semanticweb.owlapi.model.OWLAnnotationProperty;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyDomainAxiom;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyRangeAxiom;
 import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
+import org.semanticweb.owlapi.model.OWLSequence;
 import org.semanticweb.owlapi.model.OWLAsymmetricObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLCardinalityRestriction;
@@ -909,6 +907,16 @@ public abstract class AbstractTranslator<N extends Serializable, R extends N, P 
         translateAnonymousNode(individual);
     }
 
+    // rdf-array: a sequence in the data is one sequence node whose elements are its elements' nodes
+    @Override
+    public void visit(OWLSequence sequence) {
+        List<N> elements = new ArrayList<>();
+        for (OWLObject e : sequence.getElements()) {
+            elements.add(getNode(e));
+        }
+        storeNode(sequence, getSequenceNode(elements, true));
+    }
+
     @Override
     public void visit(@Nonnull OWLOntology ontology) {
         if (ontology.getOntologyID().getOntologyIRI().isPresent()) {
@@ -1239,6 +1247,16 @@ public abstract class AbstractTranslator<N extends Serializable, R extends N, P 
     @Nonnull
     protected abstract L getLiteralNode(@Nonnull OWLLiteral literal);
 
+    /**
+     * rdf-array: a sequence node, ( … ).
+     *
+     * @param elements the element nodes, in order
+     * @param isIndividual true for a sequence in the data, false for one of OWL's own lists
+     * @return the node
+     */
+    @Nonnull
+    protected abstract R getSequenceNode(@Nonnull List<N> elements, boolean isIndividual);
+
     protected abstract void addTriple(@Nonnull R subject, @Nonnull P pred, @Nonnull N object);
 
     @Nonnull
@@ -1319,23 +1337,15 @@ public abstract class AbstractTranslator<N extends Serializable, R extends N, P 
         return translateList(list, RDF_LIST.getIRI());
     }
 
+    // rdf-array: every OWL list is one sequence node, ( … ), never an rdf:first/rdf:rest ladder;
+    // the list type (rdf:List, swrl:AtomList) is not written (owl-array.md §2)
     @Nonnull
     private R translateList(@Nonnull List<? extends OWLObject> list, @Nonnull IRI listType) {
-        if (list.isEmpty()) {
-            return getResourceNode(RDF_NIL.getIRI());
+        List<N> elements = new ArrayList<>();
+        for (OWLObject obj : list) {
+            elements.add(getNode(obj));
         }
-        R main = getResourceNode(RDF_NIL.getIRI());
-        int listSize = list.size() - 1;
-        for (int i = listSize; i >= 0; i--) {
-            R anonNode = getAnonymousNode(list.subList(i, listSize));
-            addTriple(anonNode, getPredicateNode(RDF_TYPE.getIRI()), getResourceNode(listType));
-            @Nonnull
-            OWLObject obj = list.get(i);
-            addTriple(anonNode, getPredicateNode(RDF_FIRST.getIRI()), getNode(obj));
-            addTriple(anonNode, getPredicateNode(RDF_REST.getIRI()), main);
-            main = anonNode;
-        }
-        return main;
+        return getSequenceNode(elements, false);
     }
 
     private void addTriple(@Nonnull OWLObject subject, @Nonnull IRI pred, @Nonnull IRI object) {

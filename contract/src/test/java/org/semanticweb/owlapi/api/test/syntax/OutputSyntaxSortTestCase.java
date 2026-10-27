@@ -1,5 +1,7 @@
 package org.semanticweb.owlapi.api.test.syntax;
 
+import org.semanticweb.owlapi.api.test.baseclasses.RdfArrayAssumptions;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
@@ -41,6 +43,7 @@ class OutputSyntaxSortTestCase extends TestBase {
             for (String s : TestFiles.inputSorting) {
                 OWLOntology o = loadOntologyFromString(new StringDocumentSource(s,
                     IRI.generateDocumentIRI(), new FunctionalSyntaxDocumentFormat(), null));
+                RdfArrayAssumptions.assumeRoundTrippable(o, format);
                 set.add(saveOntology(o, format).toString());
                 ontologies.add(o);
             }

@@ -40,6 +40,11 @@ public class RemappingIndividualProvider implements OWLAnonymousIndividualByIdPr
 
     @Override
     public OWLAnonymousIndividual getOWLAnonymousIndividual(String nodeId) {
+        // rdf-array: a sequence is a value, not a blank node to remap; the anonymous individuals
+        // inside it are resolved, and remapped, as the rest of the document's are
+        if (SequenceNodeID.isSequenceNodeID(nodeId)) {
+            return df.getOWLSequence(SequenceNodeID.decode(nodeId, df, this));
+        }
         if (!remapEnabled) {
             return df.getOWLAnonymousIndividual(nodeId);
         }

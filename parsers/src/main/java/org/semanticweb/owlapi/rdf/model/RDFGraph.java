@@ -35,6 +35,7 @@ import javax.annotation.Nullable;
 import org.semanticweb.owlapi.io.RDFNode;
 import org.semanticweb.owlapi.io.RDFResource;
 import org.semanticweb.owlapi.io.RDFResourceBlankNode;
+import org.semanticweb.owlapi.io.RDFResourceSequence;
 import org.semanticweb.owlapi.io.RDFTriple;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLEntity;
@@ -127,6 +128,19 @@ public class RDFGraph implements Serializable {
                 ((RDFResourceBlankNode) t.getObject()).setIdRequired(true);
             }
         }
+        // rdf-array: a sequence is spelled in full wherever it occurs, so an anonymous element that
+        // occurs in more than one place (a list written in an axiom and again in its reified
+        // annotation target, say) needs its id, or each place would mint a blank node of its own
+        Map<RDFResourceBlankNode, Integer> elementOccurrences = new HashMap<>();
+        for (RDFTriple t : triples) {
+            countAnonymousElements(t.getSubject(), elementOccurrences);
+            countAnonymousElements(t.getObject(), elementOccurrences);
+        }
+        elementOccurrences.forEach((node, n) -> {
+            if (n > 1) {
+                node.setIdRequired(true);
+            }
+        });
         for (Map.Entry<RDFResourceBlankNode, List<RDFResourceBlankNode>> e : anonIndividualsInMultipleTriples
             .entrySet()) {
             if (e.getValue().size() > 1) {
@@ -158,7 +172,28 @@ public class RDFGraph implements Serializable {
             if (triple.getObject().isAnonymous() && !triple.isSubjectSameAsObject()) {
                 rootAnonymousNodes.remove(triple.getObject());
             }
+            // rdf-array: an element of a sequence is referenced, though not as a triple's object
+            forEachAnonymousElement(triple.getSubject(), rootAnonymousNodes::remove);
+            forEachAnonymousElement(triple.getObject(), rootAnonymousNodes::remove);
         }
+    }
+
+    /** rdf-array: visit the anonymous elements of a sequence node, at any depth. */
+    private static void forEachAnonymousElement(RDFNode node,
+        java.util.function.Consumer<RDFResourceBlankNode> action) {
+        if (node instanceof RDFResourceSequence) {
+            for (RDFNode e : ((RDFResourceSequence) node).getElements()) {
+                if (e instanceof RDFResourceSequence) {
+                    forEachAnonymousElement(e, action);
+                } else if (e.isAnonymous() && e instanceof RDFResourceBlankNode) {
+                    action.accept((RDFResourceBlankNode) e);
+                }
+            }
+        }
+    }
+
+    private static void countAnonymousElements(RDFNode node, Map<RDFResourceBlankNode, Integer> counts) {
+        forEachAnonymousElement(node, e -> counts.merge(e, 1, Integer::sum));
     }
 
     /**

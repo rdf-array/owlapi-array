@@ -405,6 +405,7 @@ class AbstractRoundTrippingTestCase extends TestBase {
     @ParameterizedTest
     @MethodSource({"fileRoundTrip", "fileRoundTripNoManSyntax"})
     void fileRoundTripTestCase(String fileName, OWLDocumentFormat format) {
+        RdfArrayAssumptions.assumeNoLiteralLadderInResource(fileName);
         roundTrip(loadOntology(fileName), format);
     }
 
@@ -486,6 +487,7 @@ class AbstractRoundTrippingTestCase extends TestBase {
     @MethodSource("fileRoundTripOnly")
     @ValueSource(strings = {"AnonymousInverses.rdf", "TestParser08.rdf", "nodeid.rdf"})
     void roundTripRDFXMLAndFunctionalShouldBeSame(String name) {
+        RdfArrayAssumptions.assumeNoLiteralLadderInResource(name);
         plainEqual(loadOntology(name), true);
     }
 

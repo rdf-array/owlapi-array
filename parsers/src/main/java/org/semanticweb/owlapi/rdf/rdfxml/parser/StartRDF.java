@@ -15,7 +15,9 @@ package org.semanticweb.owlapi.rdf.rdfxml.parser;
 import static org.semanticweb.owlapi.rdf.rdfxml.parser.RDFConstants.*;
 import static org.semanticweb.owlapi.util.OWLAPIPreconditions.*;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -24,6 +26,7 @@ import javax.annotation.Nullable;
 
 import org.semanticweb.owlapi.io.XMLUtils;
 import org.semanticweb.owlapi.model.NodeID;
+import org.semanticweb.owlapi.util.SequenceNodeID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.Attributes;
@@ -253,7 +256,6 @@ class NodeElement extends AbstractState implements State {
 
     protected String subjectIRI;
     protected ReificationManager reificationManager;
-    @Nonnull protected final AtomicLong nextLi = new AtomicLong(1);
 
     NodeElement(@Nonnull RDFParser parser) {
         super(parser);
@@ -283,11 +285,6 @@ class NodeElement extends AbstractState implements State {
         return reificationManager.getReificationID(rdfID, parser);
     }
 
-    /** @return next list item */
-    @Nonnull
-        String getNextLi() {
-        return RDFNS + '_' + nextLi.getAndIncrement();
-    }
 
     /**
      * @param uri
@@ -296,9 +293,7 @@ class NodeElement extends AbstractState implements State {
      */
     @Nonnull
         String getPropertyIRI(@Nonnull String uri) {
-        if (RDF_LI.equals(uri)) {
-            return getNextLi();
-        }
+        // rdf-array: rdf:li is no longer numbered into rdf:_n; it stays the property rdf:li
         return uri;
     }
 
@@ -387,17 +382,17 @@ class NodeElementList extends AbstractState implements State {
 }
 
 /** Parses parseTypeCollectionPropertyElt production. */
+/**
+ * rdf-array: rdf:parseType="Collection" is one sequence term, ( … ), not an rdf:first/rdf:rest
+ * ladder: the node elements inside are its elements, and the property element's subject gets one
+ * triple whose object is the sequence node (owl-array.md §2, §4).
+ */
 class ParseTypeCollectionElement extends AbstractState implements State {
 
     protected final NodeElement nodeElement;
     protected String pIRI;
     @Nullable protected String reificationID;
-    protected String lastCellIRI;
-
-    @Nonnull
-    protected String lastCell() {
-        return verifyNotNull(lastCellIRI);
-    }
+    protected final List<String> elements = new ArrayList<>();
 
     @Nonnull
     protected String propertyIRI() {
@@ -419,32 +414,14 @@ class ParseTypeCollectionElement extends AbstractState implements State {
             NodeElement collectionNode = new NodeElement(parser);
             parser.pushState(collectionNode);
             parser.state.startElement(namespaceIRI, localName, qName, atts);
-            String newListCellIRI = listCell(collectionNode.subjectIRI());
-            if (lastCellIRI == null) {
-                parser.statementWithResourceValue(nodeElement.subjectIRI(), propertyIRI(), newListCellIRI,
-                    reificationID);
-            } else {
-                parser.statementWithResourceValue(lastCell(), RDF_REST, newListCellIRI, null);
-            }
-            lastCellIRI = newListCellIRI;
+            elements.add(SequenceNodeID.spellNode(collectionNode.subjectIRI()));
         }
-    }
-
-    @Nonnull
-        String listCell(@Nonnull String valueIRI) {
-        String listCellIRI = NodeID.nextAnonymousIRI();
-        parser.statementWithResourceValue(listCellIRI, RDF_FIRST, valueIRI, null);
-        parser.statementWithResourceValue(listCellIRI, RDF_TYPE, RDF_LIST, null);
-        return listCellIRI;
     }
 
     @Override
     public void endElement(String namespaceIRI, String localName, String qName) {
-        if (lastCellIRI == null) {
-            parser.statementWithResourceValue(nodeElement.subjectIRI(), propertyIRI(), RDF_NIL, reificationID);
-        } else {
-            parser.statementWithResourceValue(lastCell(), RDF_REST, RDF_NIL, null);
-        }
+        parser.statementWithResourceValue(nodeElement.subjectIRI(), propertyIRI(),
+            SequenceNodeID.encodeSpellings(elements), reificationID);
         parser.popState();
     }
 

@@ -28,10 +28,6 @@ import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.OWL_ONTOLOGY;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.OWL_RESTRICTION;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.OWL_THING;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDFS_DATATYPE;
-import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_FIRST;
-import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_LIST;
-import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_NIL;
-import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_REST;
 import static org.semanticweb.owlapi.vocab.OWLRDFVocabulary.RDF_TYPE;
 
 import java.io.IOException;
@@ -57,6 +53,7 @@ import org.semanticweb.owlapi.io.AnonymousIndividualProperties;
 import org.semanticweb.owlapi.io.RDFNode;
 import org.semanticweb.owlapi.io.RDFResource;
 import org.semanticweb.owlapi.io.RDFResourceBlankNode;
+import org.semanticweb.owlapi.io.RDFResourceSequence;
 import org.semanticweb.owlapi.io.RDFResourceIRI;
 import org.semanticweb.owlapi.io.RDFTriple;
 import org.semanticweb.owlapi.model.AxiomType;
@@ -666,47 +663,32 @@ public abstract class RDFRendererBase {
      */
     public abstract void render(@Nonnull RDFResource node, boolean root) throws IOException;
 
+    /**
+     * rdf-array: whether a node is a sequence, ( … ); every list is one.
+     *
+     * @param node the node
+     * @return true for a sequence node
+     */
+    protected static boolean isSequence(RDFNode node) {
+        return node instanceof RDFResourceSequence;
+    }
+
+    // rdf-array: a list is a sequence node; "object list" means one with no literal elements
     protected boolean isObjectList(RDFResource node) {
-        for (RDFTriple triple : graph.getTriplesForSubject(node)) {
-            if (triple.getPredicate().getIRI().equals(RDF_TYPE.getIRI())
-                && !triple.getObject().isAnonymous()
-                && triple.getObject().getIRI().equals(RDF_LIST.getIRI())) {
-                List<RDFNode> items = new ArrayList<>();
-                toJavaList(node, items);
-                for (RDFNode n : items) {
-                    if (n.isLiteral()) {
-                        return false;
-                    }
-                }
-                return true;
+        if (!isSequence(node)) {
+            return false;
+        }
+        for (RDFNode n : ((RDFResourceSequence) node).getElements()) {
+            if (n.isLiteral()) {
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
     protected void toJavaList(RDFNode n, @Nonnull List<RDFNode> list) {
-        RDFNode currentNode = n;
-        while (currentNode != null) {
-            for (RDFTriple triple : graph.getTriplesForSubject(currentNode)) {
-                if (triple.getPredicate().getIRI().equals(RDF_FIRST.getIRI())) {
-                    list.add(triple.getObject());
-                }
-            }
-            for (RDFTriple triple : graph.getTriplesForSubject(currentNode)) {
-                if (triple.getPredicate().getIRI().equals(RDF_REST.getIRI())) {
-                    if (!triple.getObject().isAnonymous()) {
-                        if (triple.getObject().getIRI().equals(RDF_NIL.getIRI())) {
-                            // End of list
-                            currentNode = null;
-                        }
-                    } else {
-                        if (triple.getObject() instanceof RDFResource) {
-                            // Should be another list
-                            currentNode = triple.getObject();
-                        }
-                    }
-                }
-            }
+        if (isSequence(n)) {
+            list.addAll(((RDFResourceSequence) n).getElements());
         }
     }
 

@@ -1,5 +1,7 @@
 package org.semanticweb.owlapi.api.test.syntax;
 
+import org.semanticweb.owlapi.api.test.baseclasses.RdfArrayAssumptions;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.semanticweb.owlapi.model.parameters.Imports.EXCLUDED;
 
@@ -70,6 +72,8 @@ class PrimerTestCase extends TestBase {
 
     @Test
     void shouldRDFXMLBeEquivalent() {
+        // the OWL 2 Primer's RDF/XML writes toddlerAge's owl:oneOf ( 1 2 ) as a ladder
+        RdfArrayAssumptions.assumeNoLiteralLadder(TestFiles.RDFXML);
         OWLOntology rdf = loadOntologyFromString(TestFiles.RDFXML, iri(URN_PRIMER, "rdfxml"),
             new RDFXMLDocumentFormat());
         assertTrue(profile.checkOntology(rdf).getViolations().isEmpty());

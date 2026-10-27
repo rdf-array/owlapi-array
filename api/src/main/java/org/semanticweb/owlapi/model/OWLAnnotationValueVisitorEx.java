@@ -21,7 +21,7 @@ import javax.annotation.Nonnull;
  * @param <O>
  *        visitor type
  */
-public interface OWLAnnotationValueVisitorEx<O> {
+public interface OWLAnnotationValueVisitorEx<O> extends OWLSequenceVisitorEx<O> {
 
     /**
      * visit IRI type

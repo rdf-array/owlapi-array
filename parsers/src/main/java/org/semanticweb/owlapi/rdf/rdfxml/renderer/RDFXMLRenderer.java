@@ -32,6 +32,7 @@ import java.util.Set;
 
 import javax.annotation.Nonnull;
 
+import org.semanticweb.owlapi.io.OWLRendererException;
 import org.semanticweb.owlapi.io.RDFLiteral;
 import org.semanticweb.owlapi.io.RDFNode;
 import org.semanticweb.owlapi.io.RDFResource;
@@ -211,6 +212,9 @@ public class RDFXMLRenderer extends RDFRendererBase {
         } else {
             writer.writeStartElement(candidatePrettyPrintTypeTriple.getObject().getIRI());
         }
+        if (isSequence(node)) {
+            throw noRdfXmlSpelling(node, "as a subject");
+        }
         if (!node.isAnonymous()) {
             writer.writeAboutAttribute(node.getIRI());
         } else if (node.idRequired()) {
@@ -225,8 +229,11 @@ public class RDFXMLRenderer extends RDFRendererBase {
             RDFNode objectNode = triple.getObject();
             if (!objectNode.isLiteral()) {
                 RDFResource objectRes = (RDFResource) objectNode;
+                if (isSequence(objectRes) && !isObjectList(objectRes)) {
+                    throw noRdfXmlSpelling(objectRes, "holding a literal");
+                }
                 if (objectRes.isAnonymous()) {
-                    // Special rendering for lists
+                    // Special rendering for lists; rdf-array: every list is a sequence
                     if (isObjectList(objectRes)) {
                         writer.writeParseTypeAttribute();
                         List<RDFNode> list = new ArrayList<>();
@@ -255,7 +262,18 @@ public class RDFXMLRenderer extends RDFRendererBase {
         pending.remove(node);
     }
 
+    // rdf-array: RDF/XML has no spelling for a sequence holding a literal, nested in another, or as
+    // a subject (owl-array.md §4); until rdf-array decides one, save such an ontology as Turtle
+    private static IOException noRdfXmlSpelling(RDFNode sequence, String where) {
+        return new IOException(new OWLRendererException("RDF/XML-array cannot write the sequence "
+            + sequence + " " + where + ": rdf:parseType=\"Collection\" holds only node elements;"
+            + " save the ontology as Turtle"));
+    }
+
     protected void renderList(RDFNode n) throws IOException {
+        if (isSequence(n)) {
+            throw noRdfXmlSpelling(n, "nested in another");
+        }
         if (n.isAnonymous()) {
             if (n.idRequired()) {
                 if (!pending.contains(n)) {

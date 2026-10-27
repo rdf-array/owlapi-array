@@ -437,40 +437,18 @@ public class Translators {
 
         protected boolean isResourceListStrict(@Nullable IRI mainNode, TypeMatcher typeMatcher,
             int minSize) {
-            if (mainNode == null) {
+            // rdf-array: a list is a sequence term; a ladder is not a list (owl-array.md §2)
+            List<Object> elements = consumer.getSequenceElements(mainNode);
+            if (elements == null) {
                 return false;
             }
-            IRI currentListNode = mainNode;
-            Set<IRI> visitedListNodes = new HashSet<>();
-            int size = 0;
-            while (true) {
-                IRI firstObject = consumer.getResourceObject(currentListNode, RDF_FIRST, false);
-                if (firstObject == null) {
-                    return false;
-                }
-                if (!typeMatcher.isTypeStrict(firstObject)) {
+            for (Object element : elements) {
+                if (!(element instanceof IRI) || !typeMatcher.isTypeStrict((IRI) element)) {
                     // Something in the list that is not of the required type
                     return false;
-                } else {
-                    size++;
                 }
-                IRI restObject = consumer.getResourceObject(currentListNode, RDF_REST, false);
-                if (visitedListNodes.contains(restObject)) {
-                    // Cycle - Non-terminating
-                    return false;
-                }
-                if (restObject == null) {
-                    // Not terminated properly
-                    return false;
-                }
-                if (restObject.equals(RDF_NIL.getIRI())) {
-                    // Terminated properly
-                    return size >= minSize;
-                }
-                // Carry on
-                visitedListNodes.add(restObject);
-                currentListNode = restObject;
             }
+            return elements.size() >= minSize;
         }
 
         private interface TypeMatcher {

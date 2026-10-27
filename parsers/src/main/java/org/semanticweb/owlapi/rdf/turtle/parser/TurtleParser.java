@@ -373,16 +373,11 @@ handler.handleTriple(subject, predicate, resObject);
     throw new Error("Missing return statement in function");
 }
 
-  final public IRI parseItemList() throws ParseException {//  _x  rdf:type rdf:List
-    //  _x  rdf:first
-    //  _x  rdf:next
-    IRI firstSubject = OWLRDFVocabulary.RDF_NIL.getIRI();
-    IRI subject = null;
-    IRI type = OWLRDFVocabulary.RDF_TYPE.getIRI();
+  final public IRI parseItemList() throws ParseException {// rdf-array: a collection is one sequence term, not an rdf:first/rdf:rest ladder; the
+    // SequenceCollector records the elements and passes every other triple on
     IRI first = OWLRDFVocabulary.RDF_FIRST.getIRI();
-    IRI rest = OWLRDFVocabulary.RDF_REST.getIRI();
-    IRI list = OWLRDFVocabulary.RDF_LIST.getIRI();
-    IRI nil = OWLRDFVocabulary.RDF_NIL.getIRI();
+    SequenceCollector collector = new SequenceCollector(handler);
+    handler = collector;
     label_4:
     while (true) {
       if (jj_2_27(2)) {
@@ -390,24 +385,10 @@ handler.handleTriple(subject, predicate, resObject);
       } else {
         break label_4;
       }
-IRI prevSubject = subject;
-        subject=getNextBlankNode(null);
-        if(prevSubject != null) {
-            handler.handleTriple(prevSubject, rest, subject);
-        }
-        else {
-            firstSubject = subject;
-        }
-        if(subject!=null) {
-        handler.handleTriple(subject, type, list);
-        }
-      parseObject(subject, first);
+      parseObject(SequenceCollector.CELL, first);
     }
-// Terminate list
-        if(subject!=null) {
-            handler.handleTriple(subject, rest, nil);
-        }
-        {if ("" != null) return firstSubject;}
+handler = collector.outer();
+        {if ("" != null) return collector.sequenceNode();}
     throw new Error("Missing return statement in function");
 }
 

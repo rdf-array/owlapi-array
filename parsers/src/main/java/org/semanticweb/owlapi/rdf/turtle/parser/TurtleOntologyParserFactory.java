@@ -46,7 +46,9 @@ import org.semanticweb.owlapi.io.OWLParserFactoryImpl;
  * @author Peter Ansell p_ansell@yahoo.com
  * @since 4.0.0
  */
-@HasPriority(12)
+// rdf-array: tried before Rio's Turtle parser (priority 3), which builds rdf:first/rdf:rest
+// ladders; this parser reads a collection as one sequence term
+@HasPriority(2)
 public class TurtleOntologyParserFactory extends OWLParserFactoryImpl {
 
     private static final long serialVersionUID = 40000L;

@@ -22,7 +22,7 @@ import javax.annotation.Nonnull;
  *         Management Group
  * @since 3.0.0
  */
-public interface OWLAnnotationValueVisitor {
+public interface OWLAnnotationValueVisitor extends OWLSequenceVisitor {
 
     /**
      * visit IRI type

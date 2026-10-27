@@ -19,7 +19,7 @@ import javax.annotation.Nonnull;
  *         Management Group
  * @since 3.0.0
  */
-public interface OWLIndividualVisitor {
+public interface OWLIndividualVisitor extends OWLSequenceVisitor {
 
     /**
      * visit OWLNamedIndividual type

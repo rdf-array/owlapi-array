@@ -21,7 +21,7 @@ import javax.annotation.Nonnull;
  * @param <O>
  *        return type
  */
-public interface OWLIndividualVisitorEx<O> {
+public interface OWLIndividualVisitorEx<O> extends OWLSequenceVisitorEx<O> {
 
     /**
      * visit OWLNamedIndividual type

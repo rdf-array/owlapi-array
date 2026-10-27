@@ -49,41 +49,26 @@ class OptimisedListTranslator<O extends OWLObject> {
         return consumer;
     }
 
+    // rdf-array: a list is a sequence term; its elements come from the sequence node, and a node
+    // that is not one (an rdf:first/rdf:rest ladder) is not a list (owl-array.md §2)
     private void translateList(IRI mainNode, @Nonnull List<O> list) {
-        IRI current = mainNode;
-        while (current != null) {
-            IRI firstResource = consumer.getFirstResource(current, true);
-            if (firstResource != null) {
-                O translate = translator.translate(firstResource);
-                if (translate != null) {
-                    LOGGER.debug("list: {}", translate);
-                    list.add(translate);
-                } else {
-                    LOGGER.warn(
-                            "Possible malformed list: cannot translate it {}",
-                            firstResource);
-                }
+        List<Object> elements = consumer.getSequenceElements(mainNode);
+        if (elements == null) {
+            LOGGER.warn("Not a list (a sequence term): {}", mainNode);
+            return;
+        }
+        for (Object element : elements) {
+            O translate = element instanceof OWLLiteral ? translator.translate((OWLLiteral) element)
+                : translator.translate((IRI) element);
+            if (translate != null) {
+                LOGGER.debug("list: {}", translate);
+                list.add(translate);
             } else {
-                OWLLiteral literal = consumer.getFirstLiteral(current);
-                if (literal != null) {
-                    O translate = translator.translate(literal);
-                    if (translate != null) {
-                        list.add(translate);
-                    }
-                } else {
-                    // Empty list?
-                    LOGGER.warn("Possible malformed list: rdf:first triple missing");
-                }
+                LOGGER.warn("Possible malformed list: cannot translate it {}", element);
             }
-            current = consumer.getRest(current, true);
         }
     }
 
-    /**
-     * @param mainNode
-     *        mainNode
-     * @return translated list
-     */
     @SuppressWarnings("unchecked")
     @Nonnull
     public List<O> translateList(@Nonnull IRI mainNode) {

@@ -33,6 +33,7 @@ import org.semanticweb.owlapi.formats.PrefixDocumentFormat;
 import org.semanticweb.owlapi.io.RDFLiteral;
 import org.semanticweb.owlapi.io.RDFNode;
 import org.semanticweb.owlapi.io.RDFResource;
+import org.semanticweb.owlapi.io.RDFResourceSequence;
 import org.semanticweb.owlapi.io.RDFResourceIRI;
 import org.semanticweb.owlapi.io.RDFTriple;
 import org.semanticweb.owlapi.io.XMLUtils;
@@ -266,33 +267,43 @@ public class TurtleRenderer extends RDFRendererBase {
     }
 
     private void write(@Nonnull RDFResource node) throws IOException {
-        if (!node.isAnonymous()) {
+        if (isSequence(node)) {
+            // rdf-array: a sequence is written ( … ) wherever it appears; its own triples, if it is
+            // also a subject, are written as a statement of their own (equal sequences are one term)
+            writeSequence((RDFResourceSequence) node);
+            if (!graph.getTriplesForSubject(node).isEmpty() && !pending.contains(node)) {
+                defer(node);
+            }
+        } else if (!node.isAnonymous()) {
             write(node.getIRI());
         } else {
             pushTab();
-            if (!isObjectList(node)) {
-                render(node, false);
-            } else {
-                // List - special syntax
-                List<RDFNode> list = new ArrayList<>();
-                toJavaList(node, list);
-                pushTab();
-                write("(");
-                writeSpace();
-                pushTab();
-                for (Iterator<RDFNode> it = list.iterator(); it.hasNext();) {
-                    renderObject(verifyNotNull(it.next()));
-                    if (it.hasNext()) {
-                        writeNewLine();
-                    }
-                }
-                popTab();
-                writeNewLine();
-                write(")");
-                popTab();
-            }
+            render(node, false);
             popTab();
         }
+    }
+
+    // rdf-array: ( e1 e2 … ), nested, () when empty, for OWL's lists and data sequences alike
+    private void writeSequence(@Nonnull RDFResourceSequence sequence) throws IOException {
+        List<RDFNode> list = sequence.getElements();
+        if (list.isEmpty()) {
+            write("()");
+            return;
+        }
+        pushTab();
+        write("(");
+        writeSpace();
+        pushTab();
+        for (Iterator<RDFNode> it = list.iterator(); it.hasNext();) {
+            renderObject(verifyNotNull(it.next()));
+            if (it.hasNext()) {
+                writeNewLine();
+            }
+        }
+        popTab();
+        writeNewLine();
+        write(")");
+        popTab();
     }
 
     @Override
@@ -419,7 +430,11 @@ public class TurtleRenderer extends RDFRendererBase {
                     writeNewLine();
                 }
                 // Subject, predicate and object are different from last triple
-                if (!node.isAnonymous()) {
+                if (isSequence(node)) {
+                    // rdf-array: a sequence as subject
+                    writeSequence((RDFResourceSequence) node);
+                    writeSpace();
+                } else if (!node.isAnonymous()) {
                     write(subj);
                     writeSpace();
                 } else if (node.idRequired()) {
@@ -440,7 +455,7 @@ public class TurtleRenderer extends RDFRendererBase {
             lastPredicate = pred;
             first = false;
         }
-        if (node.isAnonymous()) {
+        if (node.isAnonymous() && !isSequence(node)) {
             popTab();
             popTab();
             if (!node.idRequired()) {
@@ -468,7 +483,7 @@ public class TurtleRenderer extends RDFRendererBase {
     }
 
     protected void renderObject(RDFNode object) throws IOException {
-        if (object.idRequired()) {
+        if (object.idRequired() && !isSequence(object)) {
             if (!pending.contains(object)) {
                 defer(object);
             }

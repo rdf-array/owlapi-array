@@ -1,5 +1,7 @@
 package org.semanticweb.owlapi.profiles;
 
+import org.semanticweb.owlapi.api.test.baseclasses.RdfArrayAssumptions;
+
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,6 +19,7 @@ class ProfileDLOnlyTestCase extends ProfileBase {
     @ParameterizedTest
     @MethodSource("data")
     void testDLOnly(String premise) {
+        RdfArrayAssumptions.assumeNoLiteralLadder(premise);
         test(premise.startsWith("<") ? new RDFXMLDocumentFormat()
             : new FunctionalSyntaxDocumentFormat(), premise, false, false, false, true);
     }

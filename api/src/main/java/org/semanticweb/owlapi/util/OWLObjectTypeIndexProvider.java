@@ -23,6 +23,7 @@ import org.semanticweb.owlapi.model.OWLAnnotationProperty;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyDomainAxiom;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyRangeAxiom;
 import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
+import org.semanticweb.owlapi.model.OWLSequence;
 import org.semanticweb.owlapi.model.OWLAsymmetricObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLClass;
 import org.semanticweb.owlapi.model.OWLClassAssertionAxiom;
@@ -121,6 +122,7 @@ public class OWLObjectTypeIndexProvider implements OWLObjectVisitor {
     /** INDIVIDUAL                       */ public static final int INDIVIDUAL                          = ENTITY_TYPE_INDEX_BASE + 5;
     /** ANNOTATION_PROPERTY              */ public static final int ANNOTATION_PROPERTY                 = ENTITY_TYPE_INDEX_BASE + 6;
     /** ANON_INDIVIDUAL                  */ public static final int ANON_INDIVIDUAL                     = ENTITY_TYPE_INDEX_BASE + 7;
+    /** SEQUENCE (rdf-array)             */ public static final int SEQUENCE                            = ENTITY_TYPE_INDEX_BASE + 8;
     /** AXIOM_TYPE_INDEX_BASE            */ public static final int AXIOM_TYPE_INDEX_BASE               = 2000;
     /** DATA_TYPE_INDEX_BASE             */ public static final int DATA_TYPE_INDEX_BASE                = 4000;
     /** ANNOTATION_TYPE_INDEX_BASE       */ public static final int ANNOTATION_TYPE_INDEX_BASE          = 5000;
@@ -183,6 +185,11 @@ public class OWLObjectTypeIndexProvider implements OWLObjectVisitor {
     @Override
     public void visit(OWLAnonymousIndividual individual) {
         type = ANON_INDIVIDUAL;
+    }
+
+    @Override
+    public void visit(OWLSequence sequence) {
+        type = SEQUENCE;
     }
 
     // Axioms

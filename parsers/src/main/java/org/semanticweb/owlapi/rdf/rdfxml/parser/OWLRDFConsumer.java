@@ -67,6 +67,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -123,6 +124,7 @@ import org.semanticweb.owlapi.rdf.rdfxml.parser.TripleHandlers.HandlerAccessor;
 import org.semanticweb.owlapi.util.AnonymousNodeChecker;
 import org.semanticweb.owlapi.util.AnonymousNodeCheckerImpl;
 import org.semanticweb.owlapi.util.CollectionFactory;
+import org.semanticweb.owlapi.util.SequenceNodeID;
 import org.semanticweb.owlapi.util.RemappingIndividualProvider;
 import org.semanticweb.owlapi.vocab.Namespaces;
 import org.semanticweb.owlapi.vocab.OWL2Datatype;
@@ -194,12 +196,6 @@ public class OWLRDFConsumer
     private final Set<IRI> ontologySubImportIRIs;
     /** IRIs that had a type triple to owl:Restriction */
     private final Set<IRI> restrictionIRIs;
-    /** Maps rdf:next triple subjects to objects */
-    private final Map<IRI, IRI> listRestTripleMap;
-    /** The list first resource triple map. */
-    private final Map<IRI, IRI> listFirstResourceTripleMap;
-    /** The list first literal triple map. */
-    private final Map<IRI, OWLLiteral> listFirstLiteralTripleMap;
     /** The axioms. */
     private final Set<IRI> axioms = new HashSet<>();
     /** The shared anonymous nodes. */
@@ -297,9 +293,6 @@ public class OWLRDFConsumer
         restrictionIRIs = CollectionFactory.createSet();
         ontologyIRIs = CollectionFactory.createSet();
         ontologySubImportIRIs = CollectionFactory.createSet();
-        listFirstLiteralTripleMap = CollectionFactory.createMap();
-        listFirstResourceTripleMap = CollectionFactory.createMap();
-        listRestTripleMap = CollectionFactory.createMap();
         for (OWL2Datatype dt : OWL2Datatype.values()) {
             dataRangeIRIs.add(dt.getIRI());
         }
@@ -1503,9 +1496,6 @@ public class OWLRDFConsumer
         dataPropertyExpressionIRIs.clear();
         dataRangeIRIs.clear();
         restrictionIRIs.clear();
-        listFirstLiteralTripleMap.clear();
-        listFirstResourceTripleMap.clear();
-        listRestTripleMap.clear();
         // XXX clean new members
         translatorAccessor.cleanup();
         resTriplesBySubject.clear();
@@ -2218,73 +2208,29 @@ public class OWLRDFConsumer
     }
 
     /**
-     * Adds the rest.
-     * 
-     * @param subject the subject
-     * @param object the object
+     * rdf-array: whether a node is a sequence term, ( … ). A sequence is the only list: an
+     * rdf:first/rdf:rest ladder is triples (owl-array.md §2).
+     *
+     * @param node the node
+     * @return true if it is a sequence node
      */
-    protected void addRest(IRI subject, IRI object) {
-        listRestTripleMap.put(subject, object);
+    protected boolean isSequence(@Nullable IRI node) {
+        return node != null && SequenceNodeID.isSequenceNodeID(node.toString());
     }
 
     /**
-     * Adds the first.
-     * 
-     * @param subject the subject
-     * @param object the object
+     * rdf-array: the elements of a sequence node: an element that is a named or blank node is its
+     * {@link IRI}, a nested sequence the {@link IRI} of its node, a literal an {@link OWLLiteral}.
+     *
+     * @param node the node
+     * @return the elements, or null if the node is not a sequence
      */
-    protected void addFirst(IRI subject, IRI object) {
-        listFirstResourceTripleMap.put(subject, object);
-    }
-
-    /**
-     * Gets the first resource.
-     * 
-     * @param subject the subject
-     * @param consume the consume
-     * @return the first resource
-     */
-    protected IRI getFirstResource(IRI subject, boolean consume) {
-        if (consume) {
-            return listFirstResourceTripleMap.remove(subject);
-        } else {
-            return listFirstResourceTripleMap.get(subject);
+    @Nullable
+    protected List<Object> getSequenceElements(@Nullable IRI node) {
+        if (!isSequence(node)) {
+            return null;
         }
-    }
-
-    /**
-     * Gets the first literal.
-     * 
-     * @param subject the subject
-     * @return the first literal
-     */
-    protected OWLLiteral getFirstLiteral(IRI subject) {
-        return listFirstLiteralTripleMap.get(subject);
-    }
-
-    /**
-     * Gets the rest.
-     * 
-     * @param subject the subject
-     * @param consume the consume
-     * @return the rest
-     */
-    protected IRI getRest(IRI subject, boolean consume) {
-        if (consume) {
-            return listRestTripleMap.remove(subject);
-        } else {
-            return listRestTripleMap.get(subject);
-        }
-    }
-
-    /**
-     * Adds the first.
-     * 
-     * @param subject the subject
-     * @param object the object
-     */
-    protected void addFirst(IRI subject, OWLLiteral object) {
-        listFirstLiteralTripleMap.put(subject, object);
+        return SequenceNodeID.decodeRaw(node.toString(), getDataFactory());
     }
 
     /**

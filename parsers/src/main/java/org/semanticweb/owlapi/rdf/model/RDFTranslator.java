@@ -14,6 +14,7 @@ package org.semanticweb.owlapi.rdf.model;
 
 import static org.semanticweb.owlapi.util.OWLAPIPreconditions.checkNotNull;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,6 +26,7 @@ import org.semanticweb.owlapi.io.RDFLiteral;
 import org.semanticweb.owlapi.io.RDFNode;
 import org.semanticweb.owlapi.io.RDFResource;
 import org.semanticweb.owlapi.io.RDFResourceBlankNode;
+import org.semanticweb.owlapi.io.RDFResourceSequence;
 import org.semanticweb.owlapi.io.RDFResourceIRI;
 import org.semanticweb.owlapi.io.RDFTriple;
 import org.semanticweb.owlapi.model.IRI;
@@ -89,6 +91,12 @@ public class RDFTranslator
             needId = axiomOccurrences.appearsMultipleTimes((OWLAxiom) key);
         }
         return getBlankNodeFor(key, isIndividual, needId, isAxiom);
+    }
+
+    @Override
+    @Nonnull
+    protected RDFResource getSequenceNode(List<RDFNode> elements, boolean isIndividual) {
+        return new RDFResourceSequence(elements, isIndividual);
     }
 
     @Override

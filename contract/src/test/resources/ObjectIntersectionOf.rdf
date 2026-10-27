@@ -9,16 +9,9 @@
     <rdf:Description rdf:about="#A">
        <rdfs:subClassOf>
            <rdf:Description>
-               <owl:intersectionOf>
-                   <rdf:List>
-                       <rdf:first rdf:resource="#B"/>
-                       <rdf:rest>
-                           <rdf:List>
-                               <rdf:first rdf:resource="#C"/>
-                               <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nill"/>
-                           </rdf:List>
-                       </rdf:rest>
-                   </rdf:List>
+               <owl:intersectionOf rdf:parseType="Collection">
+                   <rdf:Description rdf:about="#B"/>
+                   <rdf:Description rdf:about="#C"/>
                </owl:intersectionOf>
            </rdf:Description>
        </rdfs:subClassOf>

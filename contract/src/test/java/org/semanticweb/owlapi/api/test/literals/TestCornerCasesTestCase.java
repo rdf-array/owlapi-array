@@ -12,6 +12,8 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License. */
 package org.semanticweb.owlapi.api.test.literals;
 
+import org.semanticweb.owlapi.api.test.baseclasses.RdfArrayAssumptions;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -71,6 +73,7 @@ class TestCornerCasesTestCase extends TestBase {
 
     @Test
     void testWebOnt() {
+        RdfArrayAssumptions.assumeNoLiteralLadder(TestFiles.webOnt);
         Set<String> expectedResult = new TreeSet<>();
         expectedResult.add(
             "DataPropertyRange(<http://www.w3.org/2002/03owlt/oneOf/premises004#p> DataOneOf(\"1\"^^xsd:integer \"2\"^^xsd:integer \"3\"^^xsd:integer \"4\"^^xsd:integer))");

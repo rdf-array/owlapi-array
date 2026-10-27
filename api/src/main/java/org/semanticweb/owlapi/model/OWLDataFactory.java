@@ -450,6 +450,16 @@ public interface OWLDataFactory extends SWRLDataFactory, OWLEntityProvider, OWLE
     OWLDataOneOf getOWLDataOneOf(@Nonnull Set<? extends OWLLiteral> values);
 
     /**
+     * rdf-array: a sequence term, ( e1 … en ), an individual equal by its elements (owl-array.md §3).
+     *
+     * @param elements
+     *        the elements, in order: named or anonymous individuals, literals, sequences; empty for ()
+     * @return the sequence
+     */
+    @Nonnull
+    OWLSequence getOWLSequence(@Nonnull List<? extends OWLPropertyAssertionObject> elements);
+
+    /**
      * Gets an <a href= "http://www.w3.org/TR/2008/WD-owl2-syntax-20081202/#Enumeration_of_Literals"
      * >OWLDataOneOf</a>
      * 

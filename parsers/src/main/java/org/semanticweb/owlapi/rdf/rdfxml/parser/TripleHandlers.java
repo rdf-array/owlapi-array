@@ -453,8 +453,7 @@ public class TripleHandlers {
             add(predicateHandlers, new TPOneOfHandler(r));
             add(predicateHandlers, new TPSomeValuesFromHandler(r));
             add(predicateHandlers, new TPAllValuesFromHandler(r));
-            add(predicateHandlers, new TPRestHandler(r));
-            add(predicateHandlers, new TPFirstResourceHandler(r));
+            // rdf-array: no rdf:rest or rdf:first handlers; a ladder is triples, not a list
             add(predicateHandlers, new TPDeclaredAsHandler(r));
             add(predicateHandlers, new TPHasKeyHandler(r));
             add(predicateHandlers, new TPVersionIRIHandler(r));
@@ -499,7 +498,7 @@ public class TripleHandlers {
             @Nonnull OWLRDFConsumer r) {
             return CollectionFactory.list(
                 (LiteralTripleHandler) new GTPDataPropertyAssertionHandler(r),
-                new TPFirstLiteralHandler(r), new GTPAnnotationLiteralHandler(r));
+                new GTPAnnotationLiteralHandler(r));
         }
 
         private static void add(@Nonnull Map<IRI, BuiltInTypeHandler> m,
@@ -529,7 +528,6 @@ public class TripleHandlers {
             add(map, new TypeSymmetricPropertyHandler(r));
             add(map, new TypeTransitivePropertyHandler(r));
             add(map, new TypeRestrictionHandler(r));
-            add(map, new TypeListHandler(r));
             add(map, new TypeAnnotationPropertyHandler(r));
             add(map, new TypeDeprecatedClassHandler(r));
             add(map, new TypeDeprecatedPropertyHandler(r));
@@ -873,40 +871,18 @@ public class TripleHandlers {
 
         protected boolean isResourceListStrict(@Nullable IRI mainNode,
             @Nonnull TypeMatcher typeMatcher, int minSize) {
-            if (mainNode == null) {
+            // rdf-array: a list is a sequence term; a ladder is not a list (owl-array.md §2)
+            List<Object> elements = consumer.getSequenceElements(mainNode);
+            if (elements == null) {
                 return false;
             }
-            IRI currentListNode = mainNode;
-            Set<IRI> visitedListNodes = new HashSet<>();
-            int size = 0;
-            while (true) {
-                IRI firstObject = consumer.getResourceObject(currentListNode, RDF_FIRST, false);
-                if (firstObject == null) {
-                    return false;
-                }
-                if (!typeMatcher.isTypeStrict(firstObject)) {
+            for (Object element : elements) {
+                if (!(element instanceof IRI) || !typeMatcher.isTypeStrict((IRI) element)) {
                     // Something in the list that is not of the required type
                     return false;
-                } else {
-                    size++;
                 }
-                IRI restObject = consumer.getResourceObject(currentListNode, RDF_REST, false);
-                if (visitedListNodes.contains(restObject)) {
-                    // Cycle - Non-terminating
-                    return false;
-                }
-                if (restObject == null) {
-                    // Not terminated properly
-                    return false;
-                }
-                if (restObject.equals(RDF_NIL.getIRI())) {
-                    // Terminated properly
-                    return size >= minSize;
-                }
-                // Carry on
-                visitedListNodes.add(restObject);
-                currentListNode = restObject;
             }
+            return elements.size() >= minSize;
         }
 
         class ClassExpressionMatcher implements TypeMatcher {
@@ -1540,47 +1516,7 @@ public class TripleHandlers {
         }
     }
 
-    static class TPFirstLiteralHandler extends AbstractTripleHandler
-        implements LiteralTripleHandler {
 
-        TPFirstLiteralHandler(@Nonnull OWLRDFConsumer consumer) {
-            super(consumer);
-        }
-
-        @Override
-        public boolean canHandle(IRI subject, @Nullable IRI predicate, OWLLiteral object) {
-            return predicate != null && predicate.equals(RDF_FIRST.getIRI());
-        }
-
-        @Override
-        public boolean canHandleStreaming(IRI subject, @Nullable IRI predicate, OWLLiteral object) {
-            return predicate != null && predicate.equals(RDF_FIRST.getIRI());
-        }
-
-        @Override
-        public void handleTriple(IRI subject, IRI predicate, OWLLiteral object) {
-            consumer.addFirst(subject, object);
-            consumeTriple(subject, predicate, object);
-        }
-    }
-
-    static class TPFirstResourceHandler extends AbstractTriplePredicateHandler {
-
-        TPFirstResourceHandler(@Nonnull OWLRDFConsumer consumer) {
-            super(consumer, RDF_FIRST.getIRI());
-        }
-
-        @Override
-        public boolean canHandleStreaming(IRI subject, IRI predicate, IRI object) {
-            return true;
-        }
-
-        @Override
-        public void handleTriple(IRI subject, IRI predicate, IRI object) {
-            consumer.addFirst(subject, object);
-            consumeTriple(subject, predicate, object);
-        }
-    }
 
     static class TPHasKeyHandler extends AbstractTriplePredicateHandler {
 
@@ -2011,25 +1947,6 @@ public class TripleHandlers {
         }
     }
 
-    static class TPRestHandler extends AbstractTriplePredicateHandler {
-
-        TPRestHandler(@Nonnull OWLRDFConsumer consumer) {
-            super(consumer, RDF_REST.getIRI());
-        }
-
-        @Override
-        public boolean canHandleStreaming(IRI subject, IRI predicate, IRI object) {
-            return true;
-        }
-
-        @Override
-        public void handleTriple(IRI subject, IRI predicate, @Nonnull IRI object) {
-            if (!object.equals(RDF_NIL.getIRI())) {
-                consumer.addRest(subject, object);
-            }
-            consumeTriple(subject, predicate, object);
-        }
-    }
 
     static class TPSameAsHandler extends AbstractTriplePredicateHandler {
 
@@ -2164,8 +2081,8 @@ public class TripleHandlers {
                 addAxiom(df.getOWLSubPropertyChainOfAxiom(properties,
                     translateObjectProperty(object), getPendingAnnotations()));
                 consumeTriple(subject, predicate, object);
-            } else if (!isStrict() && consumer.hasPredicate(subject, RDF_FIRST.getIRI())) {
-                // Legacy object property chain representation
+            } else if (!isStrict() && consumer.isSequence(subject)) {
+                // Legacy object property chain representation; rdf-array: the list is a sequence
                 List<OWLObjectPropertyExpression> properties =
                     consumer.translatorAccessor.translateToObjectPropertyList(subject);
                 addAxiom(df.getOWLSubPropertyChainOfAxiom(properties,
@@ -2379,7 +2296,9 @@ public class TripleHandlers {
             consumeTriple(subject, predicate, object);
             IRI listNode = consumer.getResourceObject(subject, OWL_MEMBERS.getIRI(), true);
             assert listNode != null;
-            if (consumer.isObjectProperty(consumer.getFirstResource(listNode, false))) {
+            List<Object> members = consumer.getSequenceElements(listNode);
+            Object firstMember = members == null || members.isEmpty() ? null : members.get(0);
+            if (firstMember instanceof IRI && consumer.isObjectProperty((IRI) firstMember)) {
                 anns(subject);
                 List<OWLObjectPropertyExpression> props =
                     consumer.translatorAccessor.translateToObjectPropertyList(listNode);
@@ -2767,17 +2686,6 @@ public class TripleHandlers {
         }
     }
 
-    static class TypeListHandler extends AbstractBuiltInTypeHandler {
-
-        TypeListHandler(@Nonnull OWLRDFConsumer consumer) {
-            super(consumer, RDF_LIST.getIRI());
-        }
-
-        @Override
-        public void handleTriple(IRI subject, IRI predicate, IRI object) {
-            consumeTriple(subject, predicate, object);
-        }
-    }
 
     static class TypeNamedIndividualHandler extends AbstractBuiltInTypeHandler {
 

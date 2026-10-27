@@ -34,24 +34,13 @@ Tests parsing of data restriction.
        <rdfs:range>
            <rdfs:Datatype>
                <owl:onDatatype rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/>
-               <owl:withRestrictions>
-                   <rdf:List>
-                       <rdf:first>
-                            <rdf:Description>
+               <owl:withRestrictions rdf:parseType="Collection">
+                   <rdf:Description>
                                 <xsd:minInclusive rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">18</xsd:minInclusive>
                             </rdf:Description>
-                       </rdf:first>
-                       <rdf:rest>
-                           <rdf:List>
-                               <rdf:first>
-                                   <rdf:Description>
+                   <rdf:Description>
                                        <xsd:maxInclusive rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">30</xsd:maxInclusive>
                                    </rdf:Description>
-                               </rdf:first>
-                               <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nill"/>
-                           </rdf:List>
-                       </rdf:rest>
-                   </rdf:List>
                </owl:withRestrictions>
            </rdfs:Datatype>
        </rdfs:range>

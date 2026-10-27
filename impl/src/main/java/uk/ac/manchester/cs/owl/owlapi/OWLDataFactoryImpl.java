@@ -32,6 +32,9 @@ import javax.inject.Singleton;
 import org.semanticweb.owlapi.model.EntityType;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.NodeID;
+import org.semanticweb.owlapi.model.OWLPropertyAssertionObject;
+import org.semanticweb.owlapi.model.OWLSequence;
+import org.semanticweb.owlapi.util.SequenceNodeID;
 import org.semanticweb.owlapi.model.OWLAnnotation;
 import org.semanticweb.owlapi.model.OWLAnnotationAssertionAxiom;
 import org.semanticweb.owlapi.model.OWLAnnotationProperty;
@@ -409,7 +412,18 @@ public class OWLDataFactoryImpl implements OWLDataFactory, Serializable, OWLClas
     @Override
     public OWLAnonymousIndividual getOWLAnonymousIndividual(String nodeId) {
         checkNotNull(nodeId, "id cannot be null");
+        // rdf-array: a sequence's reversible node ID gives the sequence back
+        if (SequenceNodeID.isSequenceNodeID(nodeId)) {
+            return getOWLSequence(SequenceNodeID.decode(nodeId, this, this::getOWLAnonymousIndividual));
+        }
         return new OWLAnonymousIndividualImpl(NodeID.getNodeID(nodeId));
+    }
+
+    @Nonnull
+    @Override
+    public OWLSequence getOWLSequence(List<? extends OWLPropertyAssertionObject> elements) {
+        checkNotNull(elements, "elements cannot be null");
+        return new OWLSequenceImpl(elements);
     }
 
     @Nonnull
