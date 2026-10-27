@@ -110,7 +110,20 @@ ex:Paper rdfs:subClassOf [ owl:onProperty dc:creator ; owl:allValuesFrom [ owl:o
   source ontology is never changed; a change to it is taken into account at `flush()`, or at once
   for a non-buffering reasoner. Queries that mention a sequence are rewritten on the way in, and
   `isEntailed` of an axiom with a sequence the ontology does not hold is answered over a copy with
-  that sequence's expansion added.
+  that sequence's expansion added. `getSequenceInstances` answers only for sequences with a named
+  expansion individual (those holding no anonymous individual): HermiT reads `ClassAssertion(C, _:x)`
+  existentially, true as soon as some C exists, so asking it of an anonymous expansion individual
+  returned every such sequence; a sequence holding a blank node is never returned until
+  [#20](https://github.com/rdf-array/rdf-array/issues/20) is decided. `isEntailed` of a class
+  assertion on such a sequence still answers existentially. The reasoner keeps the source's manager:
+  its change listener ignores changes once the source has been removed from that manager, and
+  `dispose()` removes it from there.
+- **Protégé.** The `osgidistribution` bundle (symbolic name `org.semanticweb.owl.owlapi`, version
+  4.5.29, as upstream's) replaces `bundles/owlapi-osgidistribution.jar` in Protégé 5.6.9 and exports
+  `org.semanticweb.owlapi.rdfarray`; [protege-owl-array](https://github.com/rdf-array/protege-owl-array)
+  puts `SequenceAwareReasonerFactory` around HermiT and ELK in the reasoner menu. Protégé's own object
+  renderer extends the OWL API's Manchester renderer, so a sequence displays by its `_:seq_…` node ID
+  there too. rdf-array's examples/fhir README, §4, has the walk-through.
 
 ## Changed, layer by layer
 
@@ -132,27 +145,39 @@ ex:Paper rdfs:subClassOf [ owl:onProperty dc:creator ; owl:allValuesFrom [ owl:o
   `SequenceAxioms`, `SequenceAwareReasoner`, `SequenceAwareReasonerFactory`; HermiT as a test
   dependency.
 - **§1.6 tests** (`contract`): `api/test/rdfarray/SequenceTermTestCase`,
-  `SequenceParsingTestCase`, `SequenceRoundTripTestCase`, `SequenceReasoningTestCase`;
+  `SequenceParsingTestCase`, `SequenceRoundTripTestCase`, `SequenceReasoningTestCase`,
+  `FhirReasoningTestCase` with its resources `rdfarray/fhir/` and `vocab/owl-array.ttl`;
   `api/test/baseclasses/RdfArrayAssumptions` and the calls to it listed under Tests; the re-recorded
   fixtures.
 
 ## Tests
 
-`mvn test -pl contract` (with the modules above installed): **4673 tests, 0 failures, 0 errors, 318
+`mvn test -pl contract` (with the modules above installed): **4703 tests, 0 failures, 0 errors, 318
 skipped**, of which 316 are rdf-array flags and 2 are upstream's own (`BOMSafeInputStreamAndParseTestCase`, and
 `SWRLRoundTripTestCase`'s "man syntax does not like annotations"). Before the fork: 4640 tests, 0 failures, 2 skipped.
 
-- **Added**, 33: `SequenceTermTestCase` 7 (equality by elements, inequality with an ordinary
+- **Added**, 63: `SequenceTermTestCase` 7 (equality by elements, inequality with an ordinary
   anonymous individual, `()`, the node ID both ways, remapping, visitors, signature);
   `SequenceParsingTestCase` 7 (OWL's lists from sequences, a class expression inside a list, a data
   sequence as one individual, literals and blank nodes inside, a sequence subject, a ladder is not a
-  list, RDF/XML's Collection); `SequenceRoundTripTestCase` 6 (Turtle, RDF/XML without literals,
-  RDF/XML's refusal of a literal, the node ID through Functional-style, OWL/XML and Manchester);
-  `SequenceReasoningTestCase` 13 with HermiT (owl-array.md §3.3 and §3.4: every author is an agent,
+  list, RDF/XML's Collection); `SequenceRoundTripTestCase` 7 (Turtle, RDF/XML without literals,
+  RDF/XML's refusal of a literal, the node ID through Functional-style, OWL/XML and Manchester, and
+  blank nodes in a sequence inside a blank node in a sequence, written inside the list in Turtle and
+  RDF/XML); `SequenceReasoningTestCase` 15 with HermiT (owl-array.md §3.3 and §3.4: every author is an agent,
   `ex:p a ex:BigPaper` from `ra:length`, a property chain through `ra:first`, `ra:Sequence` and not
   `ra:EmptySequence`, `()`, `ra:last`, the three-point ring and the two-member RGB inconsistent, a
   sequence as a nominal; §3.5: `ra:member min 3` not entailed of `(ex:a ex:a ex:b)`, `ra:member only
-  C` holds of a literal-only sequence; the source ontology unchanged; reading Turtle-array).
+  C` holds of a literal-only sequence; the source ontology unchanged; reading Turtle-array;
+  `getSequenceInstances` leaves out a sequence holding a blank node; the reasoner survives its source
+  being removed from its manager); `FhirReasoningTestCase` 27 with HermiT, rdf-array's
+  [examples/fhir](https://github.com/rdf-array/rdf-array/tree/main/examples/fhir): the closure loads
+  through `catalog-v001.xml` (read as the example's `FhirReasoning.java` reads it) with no
+  `rdf:first`/`rdf:rest` and is consistent, no FHIR list is a sequence instance (#20), one test per
+  DL query of the example's table (24), and fhir.ttl's `fhir:coding only fhir:Coding` makes the data
+  inconsistent. Its resources, `contract/src/test/resources/rdfarray/fhir/` (the `.ttl` files and
+  `catalog-v001.xml`) and `vocab/owl-array.ttl` (where the catalog's `../../vocab/owl-array.ttl`
+  finds it), are unchanged copies of rdf-array's `examples/fhir` and `vocab/owl-array.ttl`; copy them
+  again when those change.
 - **Re-recorded**, 9 fixtures whose RDF/XML spelled OWL's lists as ladders of IRIs and blank nodes,
   now `rdf:parseType="Collection"`: `ObjectIntersectionOf.rdf`, `ObjectUnionOf.rdf`,
   `ObjectOneOf.rdf`, `DataIntersectionOf.rdf`, `DataUnionOf.rdf`, `DatatypeRestriction.rdf`;
@@ -177,7 +202,15 @@ skipped**, of which 316 are rdf-array flags and 2 are upstream's own (`BOMSafeIn
   - `OutputSyntaxSortTestCase.shouldOutputAllInSameOrder` for the one format that cannot carry its
     lists (`RIO` or `RDF_XML`).
 - **Not run**: the OWL 2 conformance suite (the `contract` module carries only the cases above), and
-  the reasoner tests against JFact or ELK.
+  the reasoner tests against JFact or ELK. JFact 4.0.4 calls the FHIR example inconsistent where
+  HermiT finds it consistent; the verdict goes away without the data property assertions or without
+  the cardinality restrictions, so it is JFact's datatype reasoning over `fhir:v exactly 1` with
+  literals of several datatypes, not sequences. ELK 0.6 skips anonymous individuals, every FHIR
+  element among them, and answers none of the example's non-empty queries (protege-owl-array's
+  walk-through).
+- **`xsd:date` stops HermiT** at load: `xsd:date`, `gYear`, `gYearMonth` and `time` are not in the OWL
+  2 datatype map, and FHIR writes its dates with them. The FHIR example carries no birthDate for that
+  reason; real FHIR data will.
 
 ## Decisions
 
@@ -195,7 +228,13 @@ skipped**, of which 316 are rdf-array flags and 2 are upstream's own (`BOMSafeIn
   ([#21](https://github.com/rdf-array/rdf-array/issues/21)).
 - **No object closure for a sequence holding an anonymous individual**: `ObjectOneOf` needs named
   individuals in OWL 2 DL, so the conservative path leaves the closure out and `ra:member only C` is
-  not decided of such a sequence ([#20](https://github.com/rdf-array/rdf-array/issues/20)).
+  not decided of such a sequence ([#20](https://github.com/rdf-array/rdf-array/issues/20)). Every
+  FHIR list is such a sequence.
+- **The anonymous elements of a sequence are written inside it.** The RDF translator follows an
+  anonymous individual's own axioms when it meets the individual as an object; it now follows the
+  anonymous elements of a sequence too, and the renderer no longer writes them as roots of their own.
+  Without that, `( [ :v "Sue" ] )` was saved as `( [ ] )` with `[ :v "Sue" ] .` beside it, a different
+  blank node (found saving examples/fhir's subject-sue.ttl from Protégé).
 - **The vocabulary axioms are built in code** (`SequenceAxioms.vocabularyAxioms`), mirroring
   rdf-array's `vocab/owl-array.ttl`, so the decorator needs no network or resource file; the two must
   be kept in step by hand.
@@ -213,10 +252,13 @@ skipped**, of which 316 are rdf-array flags and 2 are upstream's own (`BOMSafeIn
   a sequence as its `_:seq_…` node ID, which reads back here and reads elsewhere as an anonymous
   individual; the grammars (`OWLFunctionalSyntaxParser.jj`, `OWLXMLParserHandler`,
   `ManchesterOWLSyntaxParserImpl`) and renderers are the second step.
-- **Protégé.** Not tried: building the OSGi bundle (`osgidistribution`) under the upstream symbolic
-  name, loading it into Protégé 5.6, and a reasoner plugin that wraps HermiT in
-  `SequenceAwareReasonerFactory` (the `owl-array` skill, §2).
+- **Protégé beyond the reasoner menu**: a sequence displays by its node ID and is never a DL Query
+  answer ([#21](https://github.com/rdf-array/rdf-array/issues/21)); the first needs this fork's
+  Manchester renderer to write `( … )` (Protégé's renderer extends it), the second an editor change
+  (the `owl-array` skill, §2 step 3). The bundle keeps upstream's version, 4.5.29, so it shadows
+  upstream's in a local Maven repository; a version of its own waits for a protege-array fork.
 - **Identity under `owl:sameAs` of elements** (owl-array.md §3.1, §6): no `HasKey` axioms per length
   are added, so two ground sequences whose elements are `sameAs` are not inferred the same.
-- **ELK and JFact** are not tested; the EL path (closure off) has no test.
+- **ELK and JFact** have no contract test; the EL path (closure off) is exercised only by
+  protege-owl-array's walk-through.
 - The OBO format, the `tools` and `fixers` modules, and OWL API 5 are untouched.

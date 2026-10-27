@@ -1394,6 +1394,15 @@ public abstract class AbstractTranslator<N extends Serializable, R extends N, P 
     protected void process(OWLIndividual ind, Predicate<OWLAxiom> include) {
         if (!currentIndividuals.contains(ind)) {
             currentIndividuals.add(ind);
+            if (ind instanceof OWLSequence) {
+                // rdf-array: the anonymous elements of a sequence are written inside it, so their
+                // own axioms belong to the graph the sequence is written from
+                for (OWLObject e : ((OWLSequence) ind).getElements()) {
+                    if (e instanceof OWLIndividual && ((OWLIndividual) e).isAnonymous()) {
+                        process((OWLIndividual) e, include);
+                    }
+                }
+            }
             if (ind.isAnonymous()) {
                 for (OWLAxiom ax : getSortedIndividualAxioms(ind)) {
                     if (include.test(ax)) {

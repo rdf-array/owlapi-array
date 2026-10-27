@@ -244,4 +244,30 @@ public class SequenceReasoningTestCase {
         OWLOntology o = OWLManager.createOWLOntologyManager().loadOntologyFromOntologyDocument(new StringDocumentSource(ttl));
         assertTrue(reasoner(o).isEntailed(df.getOWLClassAssertionAxiom(agent, ada)));
     }
+
+    @Test
+    public void sequenceInstancesLeaveOutSequencesHoldingABlankNode() throws Exception {
+        // HermiT entails ClassAssertion(C, _:x) once some C exists, so an anonymous expansion
+        // individual must not be asked about (rdf-array/rdf-array#20)
+        OWLSequence withBlank = seq(ada, df.getOWLAnonymousIndividual());
+        SequenceAwareReasoner r = reasoner(ontology(df.getOWLObjectPropertyAssertionAxiom(steps, ind("r"), withBlank)));
+        // the ground sequences: the author list and RedThing's nominal; not the one holding a blank node
+        assertEquals(new HashSet<>(Arrays.asList(seq(ada, alan, grace), seq(i(255), i(0), i(0)))),
+            r.getSequenceInstances(sequenceClass, false));
+        assertTrue(r.getSequenceInstances(paper, false).isEmpty());
+    }
+
+    @Test
+    public void survivesTheSourceBeingRemovedFromItsManager() throws Exception {
+        OWLOntology o = ontology();
+        OWLOntologyManager m = o.getOWLOntologyManager();
+        OWLOntology other = m.createOntology(IRI.create(EX + "other"));
+        OWLReasoner r = reasoner(o);
+        r.isConsistent();
+        m.removeOntology(o);
+        m.addAxiom(other, df.getOWLDeclarationAxiom(paper));
+        r.dispose();
+        m.addAxiom(other, df.getOWLDeclarationAxiom(agent));
+        assertEquals(2, other.getAxiomCount());
+    }
 }

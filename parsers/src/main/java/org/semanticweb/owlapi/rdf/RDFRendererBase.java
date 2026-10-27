@@ -83,6 +83,7 @@ import org.semanticweb.owlapi.model.OWLIndividual;
 import org.semanticweb.owlapi.model.OWLInverseObjectPropertiesAxiom;
 import org.semanticweb.owlapi.model.OWLNamedIndividual;
 import org.semanticweb.owlapi.model.OWLObject;
+import org.semanticweb.owlapi.model.OWLSequence;
 import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLObjectPropertyAssertionAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
@@ -407,9 +408,20 @@ public abstract class RDFRendererBase {
     }
 
     private void renderAnonymousIndividuals() throws IOException {
+        // rdf-array: an anonymous element of a sequence is written inside the sequence, with its
+        // own axioms, wherever the sequence is written; it is not a root of its own
+        Set<OWLAnonymousIndividual> elements = new HashSet<>();
+        for (OWLAnonymousIndividual anonInd : ontology.getReferencedAnonymousIndividuals(EXCLUDED)) {
+            if (anonInd instanceof OWLSequence) {
+                collectAnonymousElements((OWLSequence) anonInd, elements);
+            }
+        }
         for (OWLAnonymousIndividual anonInd : sortOptionally(
             ontology.getReferencedAnonymousIndividuals(EXCLUDED))) {
             assert anonInd != null;
+            if (elements.contains(anonInd)) {
+                continue;
+            }
             boolean anonRoot = true;
             Set<OWLAxiom> axioms = new TreeSet<>();
             for (OWLAxiom ax : sortOptionally(ontology.getReferencingAxioms(anonInd, EXCLUDED))) {
@@ -428,6 +440,16 @@ public abstract class RDFRendererBase {
             if (anonRoot) {
                 createGraph(axioms);
                 renderAnonRoots();
+            }
+        }
+    }
+
+    private static void collectAnonymousElements(OWLSequence sequence, Set<OWLAnonymousIndividual> elements) {
+        for (OWLObject e : sequence.getElements()) {
+            if (e instanceof OWLSequence) {
+                collectAnonymousElements((OWLSequence) e, elements);
+            } else if (e instanceof OWLAnonymousIndividual) {
+                elements.add((OWLAnonymousIndividual) e);
             }
         }
     }

@@ -118,4 +118,43 @@ public class SequenceRoundTripTestCase {
     public void manchesterNodeId() throws Exception {
         roundTrip(ontology(true), new ManchesterSyntaxDocumentFormat());
     }
+
+    /** FHIR's HumanName.given inside Patient.name: blank nodes in a sequence held by a blank node in a sequence */
+    static final String NESTED = "@prefix : <" + EX + "> . @prefix owl: <http://www.w3.org/2002/07/owl#> .\n"
+        + "<" + EX + "o> a owl:Ontology . :name a owl:ObjectProperty . :given a owl:ObjectProperty .\n"
+        + ":v a owl:DatatypeProperty . :p a owl:NamedIndividual .\n"
+        + ":p :name ( [ :given ( [ :v \"Sue\" ] [ :v \"Ann\" ] ) ] ) .\n";
+
+    /** the given names are the elements of the list, each with its value */
+    static void assertGivenNamesLinked(OWLOntology o, String document) {
+        OWLObjectProperty given = op("given");
+        OWLDataProperty v = df.getOWLDataProperty(IRI.create(EX + "v"));
+        int found = 0;
+        for (OWLObjectPropertyAssertionAxiom ax : o.getAxioms(AxiomType.OBJECT_PROPERTY_ASSERTION)) {
+            if (ax.getProperty().equals(given)) {
+                OWLSequence names = (OWLSequence) ax.getObject();
+                assertEquals(2, names.getLength(), document);
+                assertTrue(o.containsAxiom(df.getOWLDataPropertyAssertionAxiom(v,
+                    (OWLIndividual) names.getElements().get(0), df.getOWLLiteral("Sue"))), document);
+                assertTrue(o.containsAxiom(df.getOWLDataPropertyAssertionAxiom(v,
+                    (OWLIndividual) names.getElements().get(1), df.getOWLLiteral("Ann"))), document);
+                found++;
+            }
+        }
+        assertEquals(1, found, document);
+    }
+
+    @Test
+    public void blankNodesInASequenceInsideABlankNodeInASequenceKeepTheirTriples() throws Exception {
+        OWLOntology o = OWLManager.createOWLOntologyManager().loadOntologyFromOntologyDocument(new StringDocumentSource(NESTED));
+        assertGivenNamesLinked(o, NESTED);
+        for (OWLDocumentFormat format : new OWLDocumentFormat[] {new TurtleDocumentFormat(), new RDFXMLDocumentFormat()}) {
+            StringDocumentTarget target = new StringDocumentTarget();
+            o.getOWLOntologyManager().saveOntology(o, format, target);
+            OWLOntology back = OWLManager.createOWLOntologyManager()
+                .loadOntologyFromOntologyDocument(new StringDocumentSource(target.toString()));
+            assertEquals(o.getAxiomCount(), back.getAxiomCount(), target.toString());
+            assertGivenNamesLinked(back, target.toString());
+        }
+    }
 }

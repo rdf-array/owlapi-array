@@ -42,6 +42,8 @@ public class SequenceAwareReasoner implements OWLReasoner {
     @Nonnull
     private final OWLOntology source;
     @Nonnull
+    private final OWLOntologyManager manager;
+    @Nonnull
     private final OWLReasonerFactory factory;
     @Nonnull
     private final OWLReasonerConfiguration config;
@@ -64,15 +66,22 @@ public class SequenceAwareReasoner implements OWLReasoner {
     public SequenceAwareReasoner(@Nonnull OWLOntology source, @Nonnull OWLReasonerFactory factory,
         @Nonnull OWLReasonerConfiguration config, boolean closure, boolean buffering) {
         this.source = source;
+        // kept: a removed ontology forgets its manager, and dispose() must still find the listener
+        this.manager = source.getOWLOntologyManager();
         this.factory = factory;
         this.config = config;
         this.closure = closure;
         this.buffering = buffering;
-        source.getOWLOntologyManager().addOntologyChangeListener(listener);
+        manager.addOntologyChangeListener(listener);
         rebuild();
     }
 
     private void markDirty(List<? extends OWLOntologyChange> changes) {
+        if (!manager.contains(source)) {
+            // the source was removed from its manager and this reasoner not disposed: the changes
+            // of the manager's other ontologies are not ours, and getImportsClosure() would throw
+            return;
+        }
         Set<OWLOntology> closureSet = source.getImportsClosure();
         for (OWLOntologyChange c : changes) {
             if (closureSet.contains(c.getOntology())) {
@@ -137,17 +146,26 @@ public class SequenceAwareReasoner implements OWLReasoner {
     /**
      * @param ce a class expression
      * @param direct whether direct instances only
-     * @return the sequences, among those in the ontology, that are instances of it
+     * @return the sequences, among those in the ontology, that are instances of it. Only sequences
+     *         whose expansion individual is named, those that hold no anonymous individual, are
+     *         answered: a stock reasoner reads a class assertion on an anonymous individual
+     *         existentially (HermiT entails {@code ClassAssertion(C, _:x)} as soon as some C exists),
+     *         so asking it of an anonymous expansion individual would return every such sequence.
+     *         A sequence holding a blank node is never returned until rdf-array/rdf-array#20 is
+     *         decided.
      */
     public Set<OWLSequence> getSequenceInstances(@Nonnull OWLClassExpression ce, boolean direct) {
         Set<OWLSequence> result = new HashSet<>();
+        NodeSet<OWLNamedIndividual> instances = null;
         for (OWLSequence s : sequences.getExpansion().keySet()) {
             OWLIndividual x = sequences.expansionOf(s);
-            if (x.isNamed() && d().getInstances(in(ce), direct).containsEntity(x.asOWLNamedIndividual())) {
-                result.add(s);
-            } else if (x.isAnonymous() && d().isEntailed(d().getRootOntology().getOWLOntologyManager()
-                .getOWLDataFactory().getOWLClassAssertionAxiom(in(ce), x))) {
-                result.add(s);
+            if (x.isNamed()) {
+                if (instances == null) {
+                    instances = d().getInstances(in(ce), direct);
+                }
+                if (instances.containsEntity(x.asOWLNamedIndividual())) {
+                    result.add(s);
+                }
             }
         }
         return result;
@@ -463,7 +481,7 @@ public class SequenceAwareReasoner implements OWLReasoner {
 
     @Override
     public void dispose() {
-        source.getOWLOntologyManager().removeOntologyChangeListener(listener);
+        manager.removeOntologyChangeListener(listener);
         delegate.dispose();
     }
 }
