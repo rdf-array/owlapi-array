@@ -1,3 +1,20 @@
+<img src=".github/rdf-array-logo.png" alt="[owlapi]" width="96" align="right">
+
+# owlapi-array: OWL API for rdf-array
+
+**rdf-array** fork of the [OWL API](https://github.com/owlcs/owlapi) 4.5.29, the line Protégé 5.6
+loads, implementing [OWL-array](https://rdf-array.github.io/rdf-array/owl-array.html). A sequence
+`( … )` is one term, `OWLSequence`, an anonymous individual equal by its elements: OWL's own lists
+(`owl:intersectionOf ( … )`, `owl:oneOf`, property chains, keys, SWRL atoms…) are read from and
+written as sequences in Turtle and RDF/XML, not as `rdf:first`/`rdf:rest` ladders, and a sequence in
+the data is an individual with the built-in `ra:member`, `ra:memberValue`, `ra:length`, `ra:first`,
+`ra:last`, `ra:firstValue` and `ra:lastValue`. `SequenceAwareReasonerFactory` wraps a stock reasoner
+(HermiT is tested) so that it knows what they mean. Part of the
+[rdf-array](https://github.com/rdf-array/rdf-array) organisation; notes in
+[doc/rdf-array.md](doc/rdf-array.md).
+
+---
+
 # OWLAPI
 ======
 
