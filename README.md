@@ -3,7 +3,7 @@
 # owlapi-array: OWL API for rdf-array
 
 **rdf-array** fork of the [OWL API](https://github.com/owlcs/owlapi) 4.5.29, the line Protégé 5.6
-loads, implementing [OWL-array](https://rdf-array.github.io/rdf-array/owl-array.html). A sequence
+loads, implementing [OWL-array](https://rdf-array.github.io/rdf-array/docs/owl-array.html). A sequence
 `( … )` is one term, `OWLSequence`, an anonymous individual equal by its elements: OWL's own lists
 (`owl:intersectionOf ( … )`, `owl:oneOf`, property chains, keys, SWRL atoms…) are read from and
 written as sequences in Turtle and RDF/XML, not as `rdf:first`/`rdf:rest` ladders, and a sequence in

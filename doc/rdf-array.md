@@ -3,8 +3,8 @@
 rdf-array is RDF whose data model has one more kind of term, the **sequence**: `(1 2 3)` in Turtle
 is one term holding its elements in order, not a ladder of `rdf:first`/`rdf:rest` blank nodes, and
 `()` is the empty sequence, not `rdf:nil`. See
-[rdf-array.md](https://rdf-array.github.io/rdf-array/rdf-array.html) for the model.
-[OWL-array](https://rdf-array.github.io/rdf-array/owl-array.html) is what that means for OWL: the
+[rdf-array.md](https://rdf-array.github.io/rdf-array/docs/rdf-array.html) for the model.
+[OWL-array](https://rdf-array.github.io/rdf-array/docs/owl-array.html) is what that means for OWL: the
 lists OWL's own mapping to RDF uses are sequences, and a sequence in the data is an individual of a
 sort of its own, equal by its elements, with built-in properties to talk about it.
 
