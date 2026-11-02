@@ -146,4 +146,38 @@ public class SequenceParsingTestCase {
             df.getOWLObjectUnionOf(cls("A"), cls("B")))));
         assertTrue(o.containsAxiom(df.getOWLObjectPropertyAssertionAxiom(op("p"), ind("x"), seq(ind("a"), ind("b")))));
     }
+
+    /** rdf-undef: undef is an element of a collection, in any case, and nothing else */
+    @Test
+    public void undefIsAnEmptySlotInACollection() throws Exception {
+        OWLUndef undef = df.getOWLUndef();
+        OWLOntology o = load(PREFIXES + "ex:x ex:p ( ex:a undef 3 ) ; ex:q ( UNDEF ) ; ex:r ( undef ( Undef ) ex:b ) .\n");
+        assertTrue(o.containsAxiom(df.getOWLObjectPropertyAssertionAxiom(op("p"), ind("x"), seq(ind("a"), undef, df.getOWLLiteral(3)))));
+        assertTrue(o.containsAxiom(df.getOWLObjectPropertyAssertionAxiom(op("q"), ind("x"), seq(undef))));
+        assertTrue(o.containsAxiom(df.getOWLObjectPropertyAssertionAxiom(op("r"), ind("x"), seq(undef, seq(undef), ind("b")))));
+        assertTrue(unparsed(o).isEmpty(), unparsed(o).toString());
+    }
+
+    @Test
+    public void undefAsAPrefixIsStillAPrefixedName() throws Exception {
+        OWLOntology o = load(PREFIXES + "@prefix undef: <" + EX + "u/> .\nex:x ex:p undef:a ; ex:q ( undef:b undef ) .\n");
+        OWLNamedIndividual ua = df.getOWLNamedIndividual(IRI.create(EX + "u/a"));
+        OWLNamedIndividual ub = df.getOWLNamedIndividual(IRI.create(EX + "u/b"));
+        assertTrue(o.containsAxiom(df.getOWLObjectPropertyAssertionAxiom(op("p"), ind("x"), ua)));
+        assertTrue(o.containsAxiom(df.getOWLObjectPropertyAssertionAxiom(op("q"), ind("x"), seq(ub, df.getOWLUndef()))));
+    }
+
+    @Test
+    public void undefOutsideACollectionIsASyntaxError() {
+        assertThrows(OWLOntologyCreationException.class, () -> load(PREFIXES + "ex:x ex:p undef .\n"));
+        assertThrows(OWLOntologyCreationException.class, () -> load(PREFIXES + "undef ex:p ex:x .\n"));
+    }
+
+    /** a slot in one of OWL's own lists is an error, not an empty union */
+    @Test
+    public void undefInAnOwlListIsAnError() {
+        OWLOntologyCreationException e = assertThrows(OWLOntologyCreationException.class,
+            () -> load(PREFIXES + "ex:C owl:equivalentClass [ a owl:Class ; owl:unionOf ( ex:A undef ex:B ) ] .\n"));
+        assertTrue(e.toString().contains("empty slot"), e.toString());
+    }
 }

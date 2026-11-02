@@ -53,6 +53,7 @@ import org.semanticweb.owlapi.io.AnonymousIndividualProperties;
 import org.semanticweb.owlapi.io.RDFNode;
 import org.semanticweb.owlapi.io.RDFResource;
 import org.semanticweb.owlapi.io.RDFResourceBlankNode;
+import org.semanticweb.owlapi.io.RDFUndef;
 import org.semanticweb.owlapi.io.RDFResourceSequence;
 import org.semanticweb.owlapi.io.RDFResourceIRI;
 import org.semanticweb.owlapi.io.RDFTriple;
@@ -701,11 +702,23 @@ public abstract class RDFRendererBase {
             return false;
         }
         for (RDFNode n : ((RDFResourceSequence) node).getElements()) {
-            if (n.isLiteral()) {
+            if (n.isLiteral() || n instanceof RDFUndef) {
                 return false;
             }
         }
         return true;
+    }
+
+    // rdf-undef: whether a sequence holds an empty slot, which RDF/XML has no spelling for either
+    protected static boolean holdsUndef(RDFResource node) {
+        if (isSequence(node)) {
+            for (RDFNode n : ((RDFResourceSequence) node).getElements()) {
+                if (n instanceof RDFUndef) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     protected void toJavaList(RDFNode n, @Nonnull List<RDFNode> list) {

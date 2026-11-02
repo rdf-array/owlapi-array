@@ -47,6 +47,13 @@ import org.semanticweb.owlapi.vocab.OWL2Datatype;
  * (or their value forms) and, unless disabled for an EL reasoner, the closure that says these are all
  * the members. The IRIs never leave the expansion: {@link #sequenceOf} maps an expansion individual
  * back to its sequence.
+ * <p>
+ * rdf-undef: an empty slot ({@link OWLUndef}) is a position with no member. It counts in
+ * {@code ra:length} and in {@code ra:holes}, gets no {@code ra:member} or {@code ra:memberValue},
+ * and an end that is a slot has no {@code ra:first} or {@code ra:last}: with the closure, the
+ * expansion says so ({@code ra:first max 0 and ra:firstValue max 0}), or a reasoner could take one
+ * of the members for the missing end. The canonical IRI spells the slots, so {@code ( 1 undef )} and
+ * {@code ( 1 )} are different individuals and two {@code ( 1 undef )} the same.
  */
 public class SequenceAxioms {
 
@@ -235,13 +242,18 @@ public class SequenceAxioms {
             df.getOWLLiteral(Integer.toString(elements.size()), OWL2Datatype.XSD_NON_NEGATIVE_INTEGER)));
         Set<OWLIndividual> individuals = new LinkedHashSet<>();
         Set<OWLLiteral> values = new LinkedHashSet<>();
+        int holes = 0;
         for (OWLPropertyAssertionObject e : elements) {
-            if (e instanceof OWLLiteral) {
+            if (e instanceof OWLUndef) {
+                holes++;   // rdf-undef: a position with no member
+            } else if (e instanceof OWLLiteral) {
                 values.add((OWLLiteral) e);
             } else {
                 individuals.add(element(e));
             }
         }
+        axioms.add(df.getOWLDataPropertyAssertionAxiom(df.getOWLDataProperty(HOLES.getIRI()), x,
+            df.getOWLLiteral(Integer.toString(holes), OWL2Datatype.XSD_NON_NEGATIVE_INTEGER)));
         for (OWLIndividual i : individuals) {
             axioms.add(df.getOWLObjectPropertyAssertionAxiom(df.getOWLObjectProperty(MEMBER.getIRI()), x, i));
         }
@@ -279,7 +291,15 @@ public class SequenceAxioms {
 
     private void end(Set<OWLAxiom> axioms, OWLIndividual x, OWLPropertyAssertionObject e,
         org.semanticweb.owlapi.vocab.RDFArrayVocabulary object, org.semanticweb.owlapi.vocab.RDFArrayVocabulary value) {
-        if (e instanceof OWLLiteral) {
+        if (e instanceof OWLUndef) {
+            // rdf-undef: no first (or last) element at an empty slot; the closure says so, since
+            // otherwise a reasoner may take the end for one of the members
+            if (closure) {
+                axioms.add(df.getOWLClassAssertionAxiom(df.getOWLObjectIntersectionOf(
+                    df.getOWLObjectMaxCardinality(0, df.getOWLObjectProperty(object.getIRI())),
+                    df.getOWLDataMaxCardinality(0, df.getOWLDataProperty(value.getIRI()))), x));
+            }
+        } else if (e instanceof OWLLiteral) {
             axioms.add(df.getOWLDataPropertyAssertionAxiom(df.getOWLDataProperty(value.getIRI()), x, (OWLLiteral) e));
         } else {
             axioms.add(df.getOWLObjectPropertyAssertionAxiom(df.getOWLObjectProperty(object.getIRI()), x, element(e)));
@@ -311,6 +331,7 @@ public class SequenceAxioms {
         OWLClass empty = df.getOWLClass(EMPTY_SEQUENCE.getIRI());
         OWLClass objectSequence = df.getOWLClass(OBJECT_SEQUENCE.getIRI());
         OWLClass dataSequence = df.getOWLClass(DATA_SEQUENCE.getIRI());
+        OWLClass dense = df.getOWLClass(DENSE_SEQUENCE.getIRI());
         OWLObjectProperty member = df.getOWLObjectProperty(MEMBER.getIRI());
         OWLObjectProperty first = df.getOWLObjectProperty(FIRST.getIRI());
         OWLObjectProperty last = df.getOWLObjectProperty(LAST.getIRI());
@@ -318,9 +339,11 @@ public class SequenceAxioms {
         OWLDataProperty firstValue = df.getOWLDataProperty(FIRST_VALUE.getIRI());
         OWLDataProperty lastValue = df.getOWLDataProperty(LAST_VALUE.getIRI());
         OWLDataProperty length = df.getOWLDataProperty(LENGTH.getIRI());
+        OWLDataProperty holes = df.getOWLDataProperty(HOLES.getIRI());
         OWLDatatype nonNegative = df.getOWLDatatype(OWL2Datatype.XSD_NON_NEGATIVE_INTEGER.getIRI());
-        for (OWLEntity e : new OWLEntity[] {sequence, empty, objectSequence, dataSequence, member, first,
-            last, memberValue, firstValue, lastValue, length}) {
+        OWLLiteral zero = df.getOWLLiteral("0", OWL2Datatype.XSD_NON_NEGATIVE_INTEGER);
+        for (OWLEntity e : new OWLEntity[] {sequence, empty, objectSequence, dataSequence, dense, member, first,
+            last, memberValue, firstValue, lastValue, length, holes}) {
             a.add(df.getOWLDeclarationAxiom(e));
         }
         a.add(df.getOWLObjectPropertyDomainAxiom(member, sequence));
@@ -333,20 +356,32 @@ public class SequenceAxioms {
         a.add(df.getOWLDataPropertyRangeAxiom(length, nonNegative));
         a.add(df.getOWLSubClassOfAxiom(sequence, df.getOWLDataSomeValuesFrom(length, nonNegative)));
         a.add(df.getOWLEquivalentClassesAxiom(empty, df.getOWLObjectIntersectionOf(sequence,
-            df.getOWLDataHasValue(length, df.getOWLLiteral("0", OWL2Datatype.XSD_NON_NEGATIVE_INTEGER)))));
+            df.getOWLDataHasValue(length, zero))));
+        // rdf-undef: every sequence has a number of empty slots; a dense one has none, () among them
+        a.add(df.getOWLDataPropertyDomainAxiom(holes, sequence));
+        a.add(df.getOWLDataPropertyRangeAxiom(holes, nonNegative));
+        a.add(df.getOWLSubClassOfAxiom(sequence, df.getOWLDataSomeValuesFrom(holes, nonNegative)));
+        a.add(df.getOWLEquivalentClassesAxiom(dense, df.getOWLObjectIntersectionOf(sequence,
+            df.getOWLDataHasValue(holes, zero))));
+        a.add(df.getOWLSubClassOfAxiom(empty, dense));
+        // functional data properties are in OWL 2 EL (functional object properties are not); with
+        // ra:holes functional, HermiT also answers a first isEntailed about ra:DenseSequence right
+        a.add(df.getOWLFunctionalDataPropertyAxiom(firstValue));
+        a.add(df.getOWLFunctionalDataPropertyAxiom(lastValue));
+        a.add(df.getOWLFunctionalDataPropertyAxiom(length));
+        a.add(df.getOWLFunctionalDataPropertyAxiom(holes));
         if (full) {
             a.add(df.getOWLFunctionalObjectPropertyAxiom(first));
             a.add(df.getOWLFunctionalObjectPropertyAxiom(last));
-            a.add(df.getOWLFunctionalDataPropertyAxiom(firstValue));
-            a.add(df.getOWLFunctionalDataPropertyAxiom(lastValue));
-            a.add(df.getOWLFunctionalDataPropertyAxiom(length));
             a.add(df.getOWLSubClassOfAxiom(empty, df.getOWLObjectMaxCardinality(0, member)));
             a.add(df.getOWLSubClassOfAxiom(empty, df.getOWLDataMaxCardinality(0, memberValue)));
             a.add(df.getOWLEquivalentClassesAxiom(objectSequence, df.getOWLObjectIntersectionOf(sequence,
                 df.getOWLObjectComplementOf(df.getOWLDataSomeValuesFrom(memberValue, df.getTopDatatype())))));
             a.add(df.getOWLEquivalentClassesAxiom(dataSequence, df.getOWLObjectIntersectionOf(sequence,
                 df.getOWLObjectComplementOf(df.getOWLObjectSomeValuesFrom(member, df.getOWLThing())))));
-            OWLClassExpression nonEmpty = df.getOWLObjectIntersectionOf(sequence, df.getOWLObjectComplementOf(empty));
+            // rdf-undef: a non-empty sequence has a first and a last element when neither end is an
+            // empty slot, which OWL cannot tell from the counts; a dense one is the case it can tell
+            OWLClassExpression nonEmpty = df.getOWLObjectIntersectionOf(dense, df.getOWLObjectComplementOf(empty));
             a.add(df.getOWLSubClassOfAxiom(nonEmpty, df.getOWLObjectUnionOf(
                 df.getOWLObjectSomeValuesFrom(first, df.getOWLThing()),
                 df.getOWLDataSomeValuesFrom(firstValue, df.getTopDatatype()))));

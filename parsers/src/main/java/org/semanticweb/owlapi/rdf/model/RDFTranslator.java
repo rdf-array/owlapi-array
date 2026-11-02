@@ -26,6 +26,7 @@ import org.semanticweb.owlapi.io.RDFLiteral;
 import org.semanticweb.owlapi.io.RDFNode;
 import org.semanticweb.owlapi.io.RDFResource;
 import org.semanticweb.owlapi.io.RDFResourceBlankNode;
+import org.semanticweb.owlapi.io.RDFUndef;
 import org.semanticweb.owlapi.io.RDFResourceSequence;
 import org.semanticweb.owlapi.io.RDFResourceIRI;
 import org.semanticweb.owlapi.io.RDFTriple;
@@ -97,6 +98,11 @@ public class RDFTranslator
     @Nonnull
     protected RDFResource getSequenceNode(List<RDFNode> elements, boolean isIndividual) {
         return new RDFResourceSequence(elements, isIndividual);
+    }
+
+    @Override
+    protected RDFNode getUndefNode() {
+        return RDFUndef.INSTANCE;
     }
 
     @Override

@@ -39,7 +39,9 @@ public enum RDFArrayVocabulary implements HasShortForm, HasIRI, HasPrefixedName 
     /** ra:memberValue, each element that is a literal */             MEMBER_VALUE("memberValue", DATA_PROPERTY),
     /** ra:firstValue, the first element when a literal */            FIRST_VALUE("firstValue", DATA_PROPERTY),
     /** ra:lastValue, the last element when a literal */              LAST_VALUE("lastValue", DATA_PROPERTY),
-    /** ra:length, the number of elements */                          LENGTH("length", DATA_PROPERTY);
+    /** ra:length, the number of elements */                          LENGTH("length", DATA_PROPERTY),
+    /** ra:holes, the number of empty slots (rdf-undef) */            HOLES("holes", DATA_PROPERTY),
+    /** ra:DenseSequence, no empty slots (rdf-undef) */               DENSE_SEQUENCE("DenseSequence", CLASS);
     //@formatter:on
 
     /** The ra: namespace. */

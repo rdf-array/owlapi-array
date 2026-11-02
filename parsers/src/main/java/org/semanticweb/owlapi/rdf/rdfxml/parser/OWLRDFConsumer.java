@@ -2230,7 +2230,14 @@ public class OWLRDFConsumer
         if (!isSequence(node)) {
             return null;
         }
-        return SequenceNodeID.decodeRaw(node.toString(), getDataFactory());
+        List<Object> elements = SequenceNodeID.decodeRaw(node.toString(), getDataFactory());
+        if (elements.contains(SequenceNodeID.RAW_UNDEF)) {
+            // rdf-undef: an empty slot has no place in a list of OWL's own syntax; the lax reading
+            // of a non-list (an empty union, say) would hide the error
+            throw new OWLParserException("rdf-undef: a list of OWL's syntax holds an empty slot: "
+                + SequenceNodeID.spellingOf(node.toString()));
+        }
+        return elements;
     }
 
     /**

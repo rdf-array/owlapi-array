@@ -71,33 +71,35 @@ public interface TurtleParserConstants {
   /** RegularExpression Id. */
   int FALSE = 42;
   /** RegularExpression Id. */
-  int SELECT = 43;
+  int UNDEF = 43;
   /** RegularExpression Id. */
-  int WHERE = 44;
+  int SELECT = 44;
   /** RegularExpression Id. */
-  int FILTER = 45;
+  int WHERE = 45;
   /** RegularExpression Id. */
-  int LETTER = 46;
+  int FILTER = 46;
   /** RegularExpression Id. */
-  int FULLIRI = 47;
+  int LETTER = 47;
   /** RegularExpression Id. */
-  int PNAME_NS = 48;
+  int FULLIRI = 48;
   /** RegularExpression Id. */
-  int PN_LOCAL = 49;
+  int PNAME_NS = 49;
   /** RegularExpression Id. */
-  int PNAME_LN = 50;
+  int PN_LOCAL = 50;
   /** RegularExpression Id. */
-  int PN_PREFIX = 51;
+  int PNAME_LN = 51;
   /** RegularExpression Id. */
-  int PN_CHARS_BASE = 52;
+  int PN_PREFIX = 52;
   /** RegularExpression Id. */
-  int PN_CHARS = 53;
+  int PN_CHARS_BASE = 53;
   /** RegularExpression Id. */
-  int PN_CHARS_U = 54;
+  int PN_CHARS = 54;
   /** RegularExpression Id. */
-  int NODEID = 55;
+  int PN_CHARS_U = 55;
   /** RegularExpression Id. */
-  int ERROR = 56;
+  int NODEID = 56;
+  /** RegularExpression Id. */
+  int ERROR = 57;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -155,6 +157,7 @@ public interface TurtleParserConstants {
     "\"_:\"",
     "\"true\"",
     "\"false\"",
+    "<UNDEF>",
     "\"SELECT\"",
     "\"WHERE\"",
     "\"FILTER\"",

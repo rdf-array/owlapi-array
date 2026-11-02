@@ -142,6 +142,7 @@ import org.semanticweb.owlapi.model.OWLObjectSomeValuesFrom;
 import org.semanticweb.owlapi.model.OWLObjectUnionOf;
 import org.semanticweb.owlapi.model.OWLObjectVisitor;
 import org.semanticweb.owlapi.model.OWLOntology;
+import org.semanticweb.owlapi.model.OWLPropertyAssertionObject;
 import org.semanticweb.owlapi.model.OWLPropertyExpression;
 import org.semanticweb.owlapi.model.OWLPropertyRange;
 import org.semanticweb.owlapi.model.OWLQuantifiedDataRestriction;
@@ -149,11 +150,13 @@ import org.semanticweb.owlapi.model.OWLQuantifiedObjectRestriction;
 import org.semanticweb.owlapi.model.OWLReflexiveObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLSameIndividualAxiom;
 import org.semanticweb.owlapi.model.OWLSubAnnotationPropertyOfAxiom;
+import org.semanticweb.owlapi.model.OWLSequence;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
 import org.semanticweb.owlapi.model.OWLSubDataPropertyOfAxiom;
 import org.semanticweb.owlapi.model.OWLSubObjectPropertyOfAxiom;
 import org.semanticweb.owlapi.model.OWLSubPropertyChainOfAxiom;
 import org.semanticweb.owlapi.model.OWLSymmetricObjectPropertyAxiom;
+import org.semanticweb.owlapi.model.OWLUndef;
 import org.semanticweb.owlapi.model.OWLTransitiveObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.SWRLAtom;
 import org.semanticweb.owlapi.model.SWRLBuiltInAtom;
@@ -450,7 +453,25 @@ public class ManchesterOWLSyntaxObjectRenderer extends AbstractRenderer
 
     @Override
     public void visit(@Nonnull OWLAnonymousIndividual individual) {
-        write(individual.toStringID());
+        if (individual instanceof OWLSequence) {
+            writeSequence((OWLSequence) individual);
+        } else {
+            write(individual.toStringID());
+        }
+    }
+
+    /** rdf-array: a sequence is written ( e1 undef e3 ), for people; a document keeps the node ID. */
+    private void writeSequence(OWLSequence sequence) {
+        write("(");
+        for (OWLPropertyAssertionObject e : sequence.getElements()) {
+            write(" ");
+            if (e instanceof OWLUndef) {
+                write("undef");
+            } else {
+                e.accept(this);
+            }
+        }
+        write(" )");
     }
 
     @Override

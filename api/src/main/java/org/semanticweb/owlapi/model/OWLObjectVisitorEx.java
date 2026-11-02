@@ -23,4 +23,4 @@ public interface OWLObjectVisitorEx<O> extends OWLAxiomVisitorEx<O>,
         OWLClassExpressionVisitorEx<O>, OWLDataVisitorEx<O>,
         OWLPropertyExpressionVisitorEx<O>, OWLEntityVisitorEx<O>,
         OWLAnnotationObjectVisitorEx<O>, SWRLObjectVisitorEx<O>,
-        OWLNamedObjectVisitorEx<O>, OWLIndividualVisitorEx<O> {}
+        OWLNamedObjectVisitorEx<O>, OWLIndividualVisitorEx<O>, OWLUndefVisitorEx<O> {}

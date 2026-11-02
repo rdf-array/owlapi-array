@@ -33,6 +33,7 @@ import org.semanticweb.owlapi.formats.PrefixDocumentFormat;
 import org.semanticweb.owlapi.io.RDFLiteral;
 import org.semanticweb.owlapi.io.RDFNode;
 import org.semanticweb.owlapi.io.RDFResource;
+import org.semanticweb.owlapi.io.RDFUndef;
 import org.semanticweb.owlapi.io.RDFResourceSequence;
 import org.semanticweb.owlapi.io.RDFResourceIRI;
 import org.semanticweb.owlapi.io.RDFTriple;
@@ -295,7 +296,12 @@ public class TurtleRenderer extends RDFRendererBase {
         writeSpace();
         pushTab();
         for (Iterator<RDFNode> it = list.iterator(); it.hasNext();) {
-            renderObject(verifyNotNull(it.next()));
+            RDFNode element = verifyNotNull(it.next());
+            if (element instanceof RDFUndef) {
+                write("undef");   // rdf-undef: an empty slot
+            } else {
+                renderObject(element);
+            }
             if (it.hasNext()) {
                 writeNewLine();
             }

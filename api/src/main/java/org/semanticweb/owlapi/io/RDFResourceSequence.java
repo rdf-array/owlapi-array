@@ -57,6 +57,9 @@ public class RDFResourceSequence extends RDFResourceBlankNode {
     }
 
     private static String spell(RDFNode e) {
+        if (e instanceof RDFUndef) {
+            return "undef";   // rdf-undef: an empty slot
+        }
         if (e instanceof RDFLiteral) {
             RDFLiteral l = (RDFLiteral) e;
             return SequenceNodeID.spellLiteral(l.getLexicalValue(), l.getLang(),

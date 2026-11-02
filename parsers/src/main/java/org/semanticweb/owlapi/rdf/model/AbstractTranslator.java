@@ -130,6 +130,7 @@ import org.semanticweb.owlapi.model.OWLAnnotationProperty;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyDomainAxiom;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyRangeAxiom;
 import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
+import org.semanticweb.owlapi.model.OWLUndef;
 import org.semanticweb.owlapi.model.OWLSequence;
 import org.semanticweb.owlapi.model.OWLAsymmetricObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -912,7 +913,8 @@ public abstract class AbstractTranslator<N extends Serializable, R extends N, P 
     public void visit(OWLSequence sequence) {
         List<N> elements = new ArrayList<>();
         for (OWLObject e : sequence.getElements()) {
-            elements.add(getNode(e));
+            // rdf-undef: an empty slot has a node of its own kind; it is no term and has no triples
+            elements.add(e instanceof OWLUndef ? getUndefNode() : getNode(e));
         }
         storeNode(sequence, getSequenceNode(elements, true));
     }
@@ -1256,6 +1258,14 @@ public abstract class AbstractTranslator<N extends Serializable, R extends N, P 
      */
     @Nonnull
     protected abstract R getSequenceNode(@Nonnull List<N> elements, boolean isIndividual);
+
+    /**
+     * rdf-undef: the node of an empty slot, {@code undef}, an element of a sequence node.
+     *
+     * @return the node
+     */
+    @Nonnull
+    protected abstract N getUndefNode();
 
     protected abstract void addTriple(@Nonnull R subject, @Nonnull P pred, @Nonnull N object);
 

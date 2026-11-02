@@ -54,6 +54,11 @@ class SequenceCollector implements TripleHandler {
         return IRI.create(SequenceNodeID.encodeSpellings(elements));
     }
 
+    /** rdf-undef: records an empty slot, {@code undef}, at the next position */
+    void handleUndef() {
+        elements.add("undef");
+    }
+
     private boolean isElement(IRI subject, IRI predicate) {
         return CELL.equals(subject) && FIRST.equals(predicate);
     }

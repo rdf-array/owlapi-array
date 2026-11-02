@@ -18,6 +18,7 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
+import org.semanticweb.owlapi.model.OWLUndef;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
 import org.semanticweb.owlapi.model.OWLAnonymousIndividualByIdProvider;
@@ -41,6 +42,17 @@ public final class SequenceNodeID {
     /** The prefix of a sequence node ID. */
     public static final String PREFIX = "_:seq_";
     private static final String BARE_PREFIX = "seq_";
+    /**
+     * rdf-undef: the raw element {@link #decodeRaw} gives for an empty slot, {@code undef}, which has
+     * no IRI and is no literal.
+     */
+    public static final Object RAW_UNDEF = new Object() {
+
+        @Override
+        public String toString() {
+            return "undef";
+        }
+    };
 
     private SequenceNodeID() {}
 
@@ -87,7 +99,9 @@ public final class SequenceNodeID {
     }
 
     private static void spellElement(OWLPropertyAssertionObject e, StringBuilder b) {
-        if (e instanceof OWLSequence) {
+        if (e instanceof OWLUndef) {
+            b.append("undef");   // rdf-undef: an empty slot
+        } else if (e instanceof OWLSequence) {
             spell(((OWLSequence) e).getElements(), b);
         } else if (e instanceof OWLLiteral) {
             OWLLiteral l = (OWLLiteral) e;
@@ -318,6 +332,9 @@ public final class SequenceNodeID {
                     elements.add(IRI.create(s.substring(start, pos)));
                 } else if (c == '"') {
                     elements.add(literal());
+                } else if (s.startsWith("undef", pos)) {
+                    pos += 5;   // rdf-undef: an empty slot
+                    elements.add(RAW_UNDEF);
                 } else {
                     throw error("unexpected " + c);
                 }
@@ -334,6 +351,10 @@ public final class SequenceNodeID {
             char c = s.charAt(pos);
             if (c == '(') {
                 return df.getOWLSequence(sequence());
+            }
+            if (s.startsWith("undef", pos)) {
+                pos += 5;   // rdf-undef: an empty slot
+                return df.getOWLUndef();
             }
             if (c == '<') {
                 int end = s.indexOf('>', pos);

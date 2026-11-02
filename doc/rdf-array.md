@@ -122,8 +122,61 @@ ex:Paper rdfs:subClassOf [ owl:onProperty dc:creator ; owl:allValuesFrom [ owl:o
   4.5.29, as upstream's) replaces `bundles/owlapi-osgidistribution.jar` in Protégé 5.6.9 and exports
   `org.semanticweb.owlapi.rdfarray`; [protege-owl-array](https://github.com/rdf-array/protege-owl-array)
   puts `SequenceAwareReasonerFactory` around HermiT and ELK in the reasoner menu. Protégé's own object
-  renderer extends the OWL API's Manchester renderer, so a sequence displays by its `_:seq_…` node ID
-  there too. rdf-array's examples/fhir README, §4, has the walk-through.
+  renderer extends the OWL API's Manchester renderer, so a sequence displays as that renderer writes
+  it, `( … )` on `rdf-undef` and by its `_:seq_…` node ID on `rdf-sequences`. rdf-array's examples/fhir README, §4, has the walk-through.
+
+## rdf-undef: the empty slot
+
+The branch `rdf-undef` adds [rdf-undef](https://rdf-array.github.io/rdf-array/docs/rdf-undef.html): a
+position in a sequence may be empty, `( 1 undef 3 )`, and the slot is a hole, not a term and not an
+unknown value (a blank node says that).
+
+```java
+OWLUndef undef = df.getOWLUndef();                                        // one object
+OWLSequence s = df.getOWLSequence(Arrays.asList(df.getOWLLiteral(1), undef, df.getOWLLiteral(3)));
+s.getLength();                                                            // 3
+SequenceNodeID.spell(s.getElements());                                    // ( "1"^^<…#integer> undef "3"^^<…#integer> )
+```
+
+- **The term.** `OWLUndef extends OWLPropertyAssertionObject`, so it is an element and nothing else:
+  no axiom takes it where an individual or a literal goes. One instance,
+  `OWLDataFactory.getOWLUndef()`; equal only to itself, an empty signature, and it sorts before every
+  element (`OWLObjectTypeIndexProvider.UNDEF`). `OWLObjectVisitor(Ex)` meet it through
+  `OWLUndefVisitor(Ex)`, whose default does nothing (returns null): no visitor looks inside a
+  sequence unless it says so.
+- **The Manchester object renderer** writes `( a undef 1 )`, which is what Protégé displays, and
+  `ManchesterOWLSyntaxParserImpl` reads it in an individual's position and after `value`. A document
+  stays as it was: `ManchesterOWLSyntaxFrameRenderer` writes the node ID.
+- **The node ID** spells it `undef`, so the Functional-style, OWL/XML and Manchester syntaxes carry
+  it unchanged, and `( 1 undef )` and `( 1 )` have different node IDs, as they are different terms.
+- **Turtle** reads `undef`, in any case as SPARQL spells `UNDEF`, as an element of a collection
+  (`TurtleParser.jj`: the token `<UNDEF>` and an alternative of `parseItemList`; the parser, its
+  constants and token manager regenerated with JavaCC 7.0.13) and writes `undef`. `undef:x` is still a
+  prefixed name, by longest match; `undef` anywhere else is a syntax error. A slot in one of OWL's own
+  lists, `owl:unionOf ( ex:A undef )`, is an `OWLParserException`, where a ladder is left as unparsed
+  triples: the lax reading of a non-list would have made it an empty union.
+- **RDF/XML** has no spelling for it and refuses, as it refuses a literal element; `RDFUndef` is the
+  slot's node in the renderer's graph.
+- **The expansion** (`SequenceAxioms`): a slot counts in `ra:length`, is counted by the new
+  `ra:holes`, gets no `ra:member` or `ra:memberValue`, and an end that is a slot gets, with the
+  closure, `ra:first max 0 and ra:firstValue max 0` (or `last`). Without that a reasoner gave
+  `( undef 2 3 )` a first value in {2, 3}: the vocabulary says a non-empty sequence has a first, and
+  the members are 2 and 3. That axiom is now stated for `ra:DenseSequence` (no slots), the case the
+  counts can tell; `( undef )` was inconsistent under the old one. The vocabulary gains `ra:holes`
+  (functional, like `ra:length`) and `ra:DenseSequence ≡ ra:Sequence and ra:holes value 0`, with
+  `ra:EmptySequence ⊑ ra:DenseSequence`. The functional data properties moved out of the
+  closure-only set: OWL 2 EL allows them, and with `ra:holes` functional HermiT answers the first
+  `isEntailed` about `ra:DenseSequence` right (without it, false before any realisation and true after).
+- **Found on the way.** `SequenceAwareReasoner.isEntailed` added the expansion of a sequence named
+  only by the query the first time it met the sequence and never again, so a second `isEntailed`
+  naming the same sequence answered over an individual with no axioms. The ontology's own sequences
+  (`SequenceAxioms.getExpandedSequences`) now decide what a query lacks; `rdf-sequences` has the bug.
+- **Tests.** `UndefReasoningTestCase`, 10 with HermiT (rdf-undef.md §4), and slot cases in
+  `SequenceTermTestCase` (1), `SequenceParsingTestCase` (4) and `SequenceRoundTripTestCase` (3).
+- **Not done here**: `HasKey` per pattern of slots (identity under `owl:sameAs` of elements is not
+  done without slots either), the Rio formats, and a reading of `ra:holes` in Protégé beyond the DL
+  Query tab. [protege-owl-array](https://github.com/rdf-array/protege-owl-array)'s `rdf-undef` branch
+  runs rdf-array's `examples/roster` through this bundle.
 
 ## Changed, layer by layer
 
@@ -155,6 +208,8 @@ ex:Paper rdfs:subClassOf [ owl:onProperty dc:creator ; owl:allValuesFrom [ owl:o
 `mvn test -pl contract` (with the modules above installed): **4704 tests, 0 failures, 0 errors, 318
 skipped**, of which 316 are rdf-array flags and 2 are upstream's own (`BOMSafeInputStreamAndParseTestCase`, and
 `SWRLRoundTripTestCase`'s "man syntax does not like annotations"). Before the fork: 4640 tests, 0 failures, 2 skipped.
+On `rdf-undef` (2026-11-02): 4725 tests, 0 failures, 0 errors, 318 skipped, the 21 more being the slot
+tests of the rdf-undef section.
 
 - **Added**, 63: `SequenceTermTestCase` 7 (equality by elements, inequality with an ordinary
   anonymous individual, `()`, the node ID both ways, remapping, visitors, signature);
@@ -248,13 +303,12 @@ skipped**, of which 316 are rdf-array flags and 2 are upstream's own (`BOMSafeIn
 - **The Rio formats** (`rio` module: RDF4J's Turtle, RDF/XML, N-Triples, N-Quads, TriG, JSON-LD,
   RDF/JSON, TriX, binary) still read and write ladders
   ([#19](https://github.com/rdf-array/rdf-array/issues/19)); RDF4J would have to know the term.
-- **The proper spellings in Functional-style, OWL/XML and Manchester** (owl-array.md §4). They carry
-  a sequence as its `_:seq_…` node ID, which reads back here and reads elsewhere as an anonymous
+- **The proper spellings in Functional-style, OWL/XML and Manchester documents** (owl-array.md §4).
+  They carry a sequence as its `_:seq_…` node ID, which reads back here and reads elsewhere as an anonymous
   individual; the grammars (`OWLFunctionalSyntaxParser.jj`, `OWLXMLParserHandler`,
   `ManchesterOWLSyntaxParserImpl`) and renderers are the second step.
-- **Protégé beyond the reasoner menu**: a sequence displays by its node ID and is never a DL Query
-  answer ([#21](https://github.com/rdf-array/rdf-array/issues/21)); the first needs this fork's
-  Manchester renderer to write `( … )` (Protégé's renderer extends it), the second an editor change
+- **Protégé beyond the reasoner menu**: a sequence is never a DL Query answer
+  ([#21](https://github.com/rdf-array/rdf-array/issues/21)), which needs an editor change
   (the `owl-array` skill, §2 step 3). The bundle keeps upstream's version, 4.5.29, so it shadows
   upstream's in a local Maven repository; a version of its own waits for a protege-array fork.
 - **Identity under `owl:sameAs` of elements** (owl-array.md §3.1, §6): no `HasKey` axioms per length

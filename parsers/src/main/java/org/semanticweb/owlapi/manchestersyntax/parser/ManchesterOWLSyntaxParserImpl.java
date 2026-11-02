@@ -160,7 +160,9 @@ import org.semanticweb.owlapi.model.OWLOntologyChange;
 import org.semanticweb.owlapi.model.OWLOntologyID;
 import org.semanticweb.owlapi.model.OWLOntologyLoaderConfiguration;
 import org.semanticweb.owlapi.model.OWLPropertyAssertionAxiom;
+import org.semanticweb.owlapi.model.OWLPropertyAssertionObject;
 import org.semanticweb.owlapi.model.OWLPropertyExpression;
+import org.semanticweb.owlapi.model.OWLSequence;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
 import org.semanticweb.owlapi.model.PrefixManager;
 import org.semanticweb.owlapi.model.SWRLAtom;
@@ -768,6 +770,9 @@ public class ManchesterOWLSyntaxParserImpl implements ManchesterOWLSyntaxParser 
             return dataFactory.getOWLObjectAllValuesFrom(prop, filler);
         } else if (VALUE.matches(kw)) {
             String indName = consumeToken();
+            if (OPEN.matches(indName)) {
+                return dataFactory.getOWLObjectHasValue(prop, parseSequence());
+            }
             if (!isIndividualName(indName)) {
                 throw new ExceptionBuilder().withInd().build();
             }
@@ -2163,10 +2168,32 @@ public class ManchesterOWLSyntaxParserImpl implements ManchesterOWLSyntaxParser 
     @Nonnull
     protected OWLIndividual parseIndividual() {
         String name = consumeToken();
+        if (OPEN.matches(name)) {
+            return parseSequence();
+        }
         if (!isIndividualName(name) && !name.startsWith("_:")) {
             throw new ExceptionBuilder().withInd().build();
         }
         return getOWLIndividual(name);
+    }
+
+    /** rdf-array: the rest of ( e1 undef e3 ), the way the object renderer writes it. */
+    @Nonnull
+    private OWLSequence parseSequence() {
+        List<OWLPropertyAssertionObject> elements = new ArrayList<>();
+        while (!CLOSE.matches(peekToken())) {
+            String tok = peekToken();
+            if (OPEN.matches(tok) || isIndividualName(tok) || tok.startsWith("_:")) {
+                elements.add(parseIndividual());
+            } else if ("undef".equalsIgnoreCase(tok)) {
+                consumeToken();
+                elements.add(dataFactory.getOWLUndef());
+            } else {
+                elements.add(parseLiteral(null));
+            }
+        }
+        consumeToken();
+        return dataFactory.getOWLSequence(elements);
     }
 
     @Nonnull

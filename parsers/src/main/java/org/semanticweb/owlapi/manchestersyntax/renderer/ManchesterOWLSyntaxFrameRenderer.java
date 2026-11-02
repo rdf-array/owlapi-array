@@ -146,6 +146,12 @@ import org.semanticweb.owlapi.util.ShortFormProvider;
 public class ManchesterOWLSyntaxFrameRenderer extends ManchesterOWLSyntaxObjectRenderer
     implements OWLEntityVisitor {
 
+    /** rdf-array: in a document a sequence stays its reversible node ID (owl-array.md §4). */
+    @Override
+    public void visit(@Nonnull OWLAnonymousIndividual individual) {
+        write(individual.toStringID());
+    }
+
     class SectionMap<O, V extends OWLAxiom> {
 
         @Nonnull

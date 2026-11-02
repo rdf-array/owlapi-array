@@ -29,6 +29,7 @@ import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+import org.semanticweb.owlapi.model.OWLUndef;
 import org.semanticweb.owlapi.model.EntityType;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.NodeID;
@@ -424,6 +425,12 @@ public class OWLDataFactoryImpl implements OWLDataFactory, Serializable, OWLClas
     public OWLSequence getOWLSequence(List<? extends OWLPropertyAssertionObject> elements) {
         checkNotNull(elements, "elements cannot be null");
         return new OWLSequenceImpl(elements);
+    }
+
+    @Nonnull
+    @Override
+    public OWLUndef getOWLUndef() {
+        return OWLUndefImpl.INSTANCE;
     }
 
     @Nonnull

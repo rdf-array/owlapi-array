@@ -21,6 +21,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.IRI;
+import org.semanticweb.owlapi.model.OWLUndef;
 import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
 import org.semanticweb.owlapi.model.OWLDataFactory;
 import org.semanticweb.owlapi.model.OWLIndividualVisitorEx;
@@ -141,5 +142,32 @@ public class SequenceTermTestCase {
         assertTrue(s.getSignature().contains(a));
         assertTrue(s.getSignature().contains(b));
         assertTrue(s.getIndividualsInSignature().containsAll(Arrays.asList(a, b)));
+    }
+
+    /** rdf-undef: the empty slot counts, is equal only to a slot, spells undef and sorts first */
+    @Test
+    public void anEmptySlotIsAnElementButNotATerm() {
+        OWLUndef undef = df.getOWLUndef();
+        assertSame(undef, df.getOWLUndef());
+        OWLSequence s = seq(df.getOWLLiteral(1), undef, seq(undef));
+        assertEquals(3, s.getLength());
+        assertEquals(s, seq(df.getOWLLiteral(1), df.getOWLUndef(), seq(df.getOWLUndef())));
+        assertNotEquals(seq(a, undef), seq(a));
+        assertNotEquals(seq(undef, a), seq(a, undef));
+        assertNotEquals(seq(undef), seq());
+        assertEquals("( \"1\"^^<http://www.w3.org/2001/XMLSchema#integer> undef ( undef ) )", SequenceNodeID.spell(s.getElements()));
+        String id = s.getID().getID();
+        assertEquals(s, df.getOWLAnonymousIndividual(id));
+        assertEquals(s.getElements(), SequenceNodeID.decode(id, df, df::getOWLAnonymousIndividual));
+        assertEquals(Arrays.asList(SequenceNodeID.RAW_UNDEF), SequenceNodeID.decodeRaw(seq(undef).getID().getID(), df));
+        // a slot has no signature and is no anonymous individual
+        assertTrue(undef.getSignature().isEmpty());
+        assertTrue(s.getAnonymousIndividuals().isEmpty());
+        assertEquals(s.getSignature(), seq(df.getOWLLiteral(1)).getSignature());
+        // a slot sorts before every element
+        assertTrue(undef.compareTo(a) < 0);
+        assertTrue(undef.compareTo(df.getOWLLiteral(1)) < 0);
+        assertTrue(seq(undef, a).compareTo(seq(a, a)) < 0);
+        assertEquals(0, undef.compareTo(df.getOWLUndef()));
     }
 }

@@ -22,4 +22,4 @@ public interface OWLObjectVisitor extends OWLAxiomVisitor,
         OWLPropertyExpressionVisitor, OWLEntityVisitor,
         OWLAnnotationAxiomVisitor, OWLIndividualVisitor,
         OWLAnnotationValueVisitor, OWLAnnotationObjectVisitor,
-        SWRLObjectVisitor, OWLNamedObjectVisitor {}
+        SWRLObjectVisitor, OWLNamedObjectVisitor, OWLUndefVisitor {}

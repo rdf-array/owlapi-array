@@ -460,6 +460,14 @@ public interface OWLDataFactory extends SWRLDataFactory, OWLEntityProvider, OWLE
     OWLSequence getOWLSequence(@Nonnull List<? extends OWLPropertyAssertionObject> elements);
 
     /**
+     * rdf-undef: the empty slot of a sequence, {@code undef}, an element that is not a term.
+     *
+     * @return the slot, one object for every sequence
+     */
+    @Nonnull
+    OWLUndef getOWLUndef();
+
+    /**
      * Gets an <a href= "http://www.w3.org/TR/2008/WD-owl2-syntax-20081202/#Enumeration_of_Literals"
      * >OWLDataOneOf</a>
      * 

@@ -230,7 +230,7 @@ public class RDFXMLRenderer extends RDFRendererBase {
             if (!objectNode.isLiteral()) {
                 RDFResource objectRes = (RDFResource) objectNode;
                 if (isSequence(objectRes) && !isObjectList(objectRes)) {
-                    throw noRdfXmlSpelling(objectRes, "holding a literal");
+                    throw noRdfXmlSpelling(objectRes, holdsUndef(objectRes) ? "holding an empty slot (undef)" : "holding a literal");
                 }
                 if (objectRes.isAnonymous()) {
                     // Special rendering for lists; rdf-array: every list is a sequence

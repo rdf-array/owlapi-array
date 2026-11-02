@@ -16,6 +16,7 @@ import static org.semanticweb.owlapi.util.OWLAPIPreconditions.checkNotNull;
 
 import javax.annotation.Nonnull;
 
+import org.semanticweb.owlapi.model.OWLUndef;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAnnotation;
 import org.semanticweb.owlapi.model.OWLAnnotationAssertionAxiom;
@@ -123,6 +124,7 @@ public class OWLObjectTypeIndexProvider implements OWLObjectVisitor {
     /** ANNOTATION_PROPERTY              */ public static final int ANNOTATION_PROPERTY                 = ENTITY_TYPE_INDEX_BASE + 6;
     /** ANON_INDIVIDUAL                  */ public static final int ANON_INDIVIDUAL                     = ENTITY_TYPE_INDEX_BASE + 7;
     /** SEQUENCE (rdf-array)             */ public static final int SEQUENCE                            = ENTITY_TYPE_INDEX_BASE + 8;
+    /** UNDEF (rdf-undef): the empty slot of a sequence, before every element */ public static final int UNDEF = ENTITY_TYPE_INDEX_BASE;
     /** AXIOM_TYPE_INDEX_BASE            */ public static final int AXIOM_TYPE_INDEX_BASE               = 2000;
     /** DATA_TYPE_INDEX_BASE             */ public static final int DATA_TYPE_INDEX_BASE                = 4000;
     /** ANNOTATION_TYPE_INDEX_BASE       */ public static final int ANNOTATION_TYPE_INDEX_BASE          = 5000;
@@ -190,6 +192,11 @@ public class OWLObjectTypeIndexProvider implements OWLObjectVisitor {
     @Override
     public void visit(OWLSequence sequence) {
         type = SEQUENCE;
+    }
+
+    @Override
+    public void visit(OWLUndef undef) {
+        type = UNDEF;
     }
 
     // Axioms

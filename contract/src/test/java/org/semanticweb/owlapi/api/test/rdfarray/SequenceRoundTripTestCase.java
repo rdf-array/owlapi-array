@@ -15,12 +15,15 @@ package org.semanticweb.owlapi.api.test.rdfarray;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.semanticweb.owlapi.api.test.rdfarray.SequenceParsingTestCase.*;
 
+import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.expression.ShortFormEntityChecker;
 import org.semanticweb.owlapi.formats.FunctionalSyntaxDocumentFormat;
 import org.semanticweb.owlapi.formats.ManchesterSyntaxDocumentFormat;
 import org.semanticweb.owlapi.formats.OWLXMLDocumentFormat;
@@ -28,7 +31,12 @@ import org.semanticweb.owlapi.formats.RDFXMLDocumentFormat;
 import org.semanticweb.owlapi.formats.TurtleDocumentFormat;
 import org.semanticweb.owlapi.io.StringDocumentSource;
 import org.semanticweb.owlapi.io.StringDocumentTarget;
+import org.semanticweb.owlapi.manchestersyntax.renderer.ManchesterOWLSyntaxObjectRenderer;
 import org.semanticweb.owlapi.model.*;
+import org.semanticweb.owlapi.util.BidirectionalShortFormProviderAdapter;
+import org.semanticweb.owlapi.util.ShortFormProvider;
+import org.semanticweb.owlapi.util.SimpleShortFormProvider;
+import org.semanticweb.owlapi.util.mansyntax.ManchesterOWLSyntaxParser;
 
 /**
  * rdf-array: OWL's lists and data sequences survive a round trip through every syntax: Turtle
@@ -156,5 +164,81 @@ public class SequenceRoundTripTestCase {
             assertEquals(o.getAxiomCount(), back.getAxiomCount(), target.toString());
             assertGivenNamesLinked(back, target.toString());
         }
+    }
+
+    /** rdf-undef: a slot survives Turtle and the node ID syntaxes; RDF/XML has no spelling for it */
+    static OWLOntology withSlots() throws OWLOntologyCreationException {
+        OWLOntologyManager m = OWLManager.createOWLOntologyManager();
+        OWLOntology o = m.createOntology(IRI.create(EX + "o"));
+        OWLUndef undef = df.getOWLUndef();
+        m.addAxioms(o, new HashSet<>(Arrays.asList(
+            df.getOWLDeclarationAxiom(op("p")), df.getOWLDeclarationAxiom(ind("a")), df.getOWLDeclarationAxiom(ind("x")),
+            df.getOWLObjectPropertyAssertionAxiom(op("p"), ind("x"), seq(ind("a"), undef, df.getOWLLiteral(1), seq(undef))),
+            df.getOWLObjectPropertyAssertionAxiom(op("p"), ind("x"), seq(undef)),
+            df.getOWLObjectPropertyAssertionAxiom(op("p"), seq(undef, ind("a")), ind("a")))));
+        return o;
+    }
+
+    @Test
+    public void slotsInTurtle() throws Exception {
+        OWLOntology o = withSlots();
+        StringDocumentTarget target = new StringDocumentTarget();
+        o.getOWLOntologyManager().saveOntology(o, new TurtleDocumentFormat(), target);
+        String ttl = target.toString();
+        assertTrue(ttl.contains("undef"), ttl);
+        assertFalse(ttl.contains("seq_") || ttl.contains("urn:rdf-array"), ttl);
+        roundTrip(o, new TurtleDocumentFormat());
+    }
+
+    @Test
+    public void slotsInTheNodeIdSyntaxes() throws Exception {
+        roundTrip(withSlots(), new FunctionalSyntaxDocumentFormat());
+        roundTrip(withSlots(), new OWLXMLDocumentFormat());
+        roundTrip(withSlots(), new ManchesterSyntaxDocumentFormat());
+    }
+
+    @Test
+    public void rdfXmlRefusesASlot() throws Exception {
+        OWLOntologyManager m = OWLManager.createOWLOntologyManager();
+        OWLOntology o = m.createOntology(IRI.create(EX + "o"));
+        m.addAxioms(o, new HashSet<>(Arrays.asList(df.getOWLDeclarationAxiom(op("p")),
+            df.getOWLObjectPropertyAssertionAxiom(op("p"), ind("x"), seq(ind("a"), df.getOWLUndef())))));
+        OWLOntologyStorageException e = assertThrows(OWLOntologyStorageException.class,
+            () -> m.saveOntology(o, new RDFXMLDocumentFormat(), new StringDocumentTarget()));
+        Throwable t = e;
+        boolean found = false;
+        while (t != null) {
+            found |= t.getMessage() != null && t.getMessage().contains("empty slot");
+            t = t.getCause();
+        }
+        assertTrue(found, e.toString());
+    }
+
+    @Test
+    public void manchesterObjectRendererWritesTheElementsAndItsParserReadsThem() throws Exception {
+        OWLSequence s = seq(ind("a"), df.getOWLUndef(), df.getOWLLiteral(1), seq(df.getOWLUndef()));
+        ShortFormProvider shortForms = new SimpleShortFormProvider();
+        StringWriter w = new StringWriter();
+        s.accept(new ManchesterOWLSyntaxObjectRenderer(w, shortForms));
+        assertEquals("( a undef 1 ( undef ) )", w.toString());
+
+        OWLOntology o = ontology(false);
+        ManchesterOWLSyntaxParser parser = OWLManager.createManchesterParser();
+        parser.setDefaultOntology(o);
+        parser.setOWLEntityChecker(new ShortFormEntityChecker(new BidirectionalShortFormProviderAdapter(
+            o.getOWLOntologyManager(), Collections.singleton(o), shortForms)));
+        parser.setStringToParse("p value " + w);
+        assertEquals(df.getOWLObjectHasValue(op("p"), s), parser.parseClassExpression());
+    }
+
+    @Test
+    public void aManchesterDocumentKeepsTheNodeID() throws Exception {
+        OWLOntology o = ontology(false);
+        o.getOWLOntologyManager().addAxiom(o, df.getOWLObjectPropertyAssertionAxiom(op("p"), ind("x"),
+            seq(ind("a"), df.getOWLUndef())));
+        StringDocumentTarget target = new StringDocumentTarget();
+        o.getOWLOntologyManager().saveOntology(o, new ManchesterSyntaxDocumentFormat(), target);
+        assertTrue(target.toString().contains("_:seq_"), target.toString());
+        assertFalse(target.toString().contains("undef"), target.toString());
     }
 }
