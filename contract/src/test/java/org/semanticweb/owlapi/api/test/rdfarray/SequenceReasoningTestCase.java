@@ -258,6 +258,18 @@ public class SequenceReasoningTestCase {
     }
 
     @Test
+    public void aSequenceOnlyAQueryNamesIsExpandedForEveryQuery() throws Exception {
+        SequenceAwareReasoner r = reasoner(ontology());
+        OWLSequence foreign = seq(grace, ada);
+        OWLAxiom isASequence = df.getOWLClassAssertionAxiom(sequenceClass, foreign);
+        assertTrue(r.isEntailed(isASequence));
+        // the first query gave it an expansion individual, whose axioms are still not in the reasoner
+        assertTrue(r.isEntailed(isASequence));
+        assertTrue(r.isEntailed(df.getOWLObjectPropertyAssertionAxiom(first, foreign, grace)));
+        assertFalse(r.getSequenceInstances(sequenceClass, false).contains(foreign));
+    }
+
+    @Test
     public void survivesTheSourceBeingRemovedFromItsManager() throws Exception {
         OWLOntology o = ontology();
         OWLOntologyManager m = o.getOWLOntologyManager();

@@ -58,6 +58,9 @@ public class SequenceAxioms {
     private final boolean closure;
     private final Map<OWLSequence, OWLIndividual> expansion = new LinkedHashMap<>();
     private final Map<OWLIndividual, OWLSequence> back = new HashMap<>();
+    // the sequences expand() has expanded; a query may name others, whose expansion individuals are
+    // in the maps above but whose axioms the reasoner has not seen
+    private final Set<OWLSequence> expandedSequences = new LinkedHashSet<>();
 
     /**
      * @param df the data factory
@@ -94,9 +97,30 @@ public class SequenceAxioms {
         return back.get(i);
     }
 
-    /** @return the sequences met so far and their expansion individuals */
+    /** @return the sequences met so far, in the ontology or in a query, and their expansion individuals */
     public Map<OWLSequence, OWLIndividual> getExpansion() {
         return expansion;
+    }
+
+    /** @return the sequences {@link #expand} has expanded, nested ones included */
+    @Nonnull
+    public Set<OWLSequence> getExpandedSequences() {
+        return Collections.unmodifiableSet(expandedSequences);
+    }
+
+    /**
+     * @param o an axiom or class expression
+     * @return the sequences in it, nested ones included
+     */
+    @Nonnull
+    public static Set<OWLSequence> sequencesIn(@Nonnull OWLObject o) {
+        Set<OWLSequence> found = new LinkedHashSet<>();
+        collect(o, found);
+        Set<OWLSequence> all = new LinkedHashSet<>();
+        for (OWLSequence s : found) {
+            addWithNested(s, all);
+        }
+        return all;
     }
 
     private static boolean holdsAnonymous(OWLSequence s) {
@@ -133,6 +157,7 @@ public class SequenceAxioms {
         for (OWLSequence s : all) {
             result.addAll(expansionAxioms(s));
         }
+        expandedSequences.addAll(all);
         result.addAll(vocabularyAxioms(df, closure));
         return result;
     }

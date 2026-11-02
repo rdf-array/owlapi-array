@@ -152,7 +152,7 @@ ex:Paper rdfs:subClassOf [ owl:onProperty dc:creator ; owl:allValuesFrom [ owl:o
 
 ## Tests
 
-`mvn test -pl contract` (with the modules above installed): **4703 tests, 0 failures, 0 errors, 318
+`mvn test -pl contract` (with the modules above installed): **4704 tests, 0 failures, 0 errors, 318
 skipped**, of which 316 are rdf-array flags and 2 are upstream's own (`BOMSafeInputStreamAndParseTestCase`, and
 `SWRLRoundTripTestCase`'s "man syntax does not like annotations"). Before the fork: 4640 tests, 0 failures, 2 skipped.
 

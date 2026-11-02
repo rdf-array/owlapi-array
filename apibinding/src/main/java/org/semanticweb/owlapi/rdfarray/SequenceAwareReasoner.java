@@ -15,6 +15,7 @@ package org.semanticweb.owlapi.rdfarray;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -157,7 +158,7 @@ public class SequenceAwareReasoner implements OWLReasoner {
     public Set<OWLSequence> getSequenceInstances(@Nonnull OWLClassExpression ce, boolean direct) {
         Set<OWLSequence> result = new HashSet<>();
         NodeSet<OWLNamedIndividual> instances = null;
-        for (OWLSequence s : sequences.getExpansion().keySet()) {
+        for (OWLSequence s : sequences.getExpandedSequences()) {
             OWLIndividual x = sequences.expansionOf(s);
             if (x.isNamed()) {
                 if (instances == null) {
@@ -278,24 +279,25 @@ public class SequenceAwareReasoner implements OWLReasoner {
     @Override
     public boolean isEntailed(OWLAxiom axiom) {
         OWLReasoner r = d();
-        Set<OWLSequence> before = new HashSet<>(sequences.getExpansion().keySet());
-        OWLAxiom rewritten = in(axiom.getAxiomWithoutAnnotations());
-        if (!sequences.getExpansion().keySet().equals(before)) {
-            // the axiom mentions a sequence the ontology does not: answer over a copy that also
-            // holds that sequence's expansion
-            return entailedWithNewSequences(rewritten, before);
+        OWLAxiom plain = axiom.getAxiomWithoutAnnotations();
+        // the sequences the axiom mentions and the ontology does not; an earlier query may have
+        // given them expansion individuals already, which is why the ontology's own set is asked
+        Set<OWLSequence> missing = new LinkedHashSet<>(SequenceAxioms.sequencesIn(plain));
+        missing.removeAll(sequences.getExpandedSequences());
+        OWLAxiom rewritten = in(plain);
+        if (!missing.isEmpty()) {
+            // answer over a copy that also holds those sequences' expansions
+            return entailedWithNewSequences(rewritten, missing);
         }
         return r.isEntailed(rewritten);
     }
 
-    private boolean entailedWithNewSequences(OWLAxiom rewritten, Set<OWLSequence> before) {
+    private boolean entailedWithNewSequences(OWLAxiom rewritten, Set<OWLSequence> missing) {
         try {
             OWLOntologyManager m = expanded.getOWLOntologyManager();
             OWLOntology copy = m.createOntology(expanded.getAxioms());
-            for (OWLSequence s : sequences.getExpansion().keySet()) {
-                if (!before.contains(s)) {
-                    m.addAxioms(copy, sequences.expansionAxioms(s));
-                }
+            for (OWLSequence s : missing) {
+                m.addAxioms(copy, sequences.expansionAxioms(s));
             }
             OWLReasoner r = factory.createNonBufferingReasoner(copy, config);
             try {
